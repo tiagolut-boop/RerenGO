@@ -1,0 +1,6 @@
+{
+  "name": "ResenGO",
+  "description": "Plataforma SaaS Multi-tenant Avançada de Food Service, Delivery, Cozinha e Inteligência Financeira",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

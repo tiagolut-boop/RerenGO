@@ -1,0 +1,100 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Outfit", "Inter", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+}
+
+/* Custom scrollbars and styling for a modern, high-contrast look */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #e7e5e4;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #d6d3d1;
+}
+
+/* Receipt Print Styles */
+@media print {
+  /* Hide the main application container completely during printing so it takes up exactly 0px height */
+  #root {
+    display: none !important;
+  }
+
+  /* Hide any other direct siblings of body during print, except our print wrapper */
+  body > *:not(.print-area-wrapper) {
+    display: none !important;
+  }
+
+  /* Reset html and body layout so the printer doesn't add multiple blank pages or scrolls */
+  html, body {
+    background-color: #ffffff !important;
+    color: #000000 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: 100% !important;
+    overflow: hidden !important; /* Forces exactly 1 contiguous receipt strip, preventing extra page feeds */
+  }
+
+  /* Show only our print area, using relative positioning to fit perfectly on a single page */
+  .print-area-wrapper {
+    display: block !important;
+    visibility: visible !important;
+    position: relative !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 80mm !important; /* Default 80mm width */
+    margin: 0 !important;
+    padding: 2mm !important;
+    background: #fff !important;
+    color: #000 !important;
+    font-family: 'JetBrains Mono', 'Courier New', Courier, monospace !important;
+    font-size: 11px !important;
+    line-height: 1.25 !important;
+    box-sizing: border-box !important;
+    page-break-inside: avoid !important;
+    page-break-after: avoid !important;
+    page-break-before: avoid !important;
+    break-inside: avoid !important;
+    break-after: avoid !important;
+    overflow: hidden !important;
+  }
+
+  /* Ensure all content inside the print wrapper is fully visible */
+  .print-area-wrapper, .print-area-wrapper * {
+    visibility: visible !important;
+    display: block !important;
+  }
+
+  /* Retain correct inline layout for inline-block/span elements */
+  .print-area-wrapper span,
+  .print-area-wrapper strong,
+  .print-area-wrapper b,
+  .print-area-wrapper i {
+    display: inline !important;
+  }
+
+  /* When printing 58mm width */
+  .print-width-58 {
+    width: 58mm !important;
+    font-size: 9.5px !important;
+    padding: 1mm !important;
+  }
+
+  /* Force page size and margins for receipt rolls */
+  @page {
+    size: auto;
+    margin: 0;
+  }
+}
