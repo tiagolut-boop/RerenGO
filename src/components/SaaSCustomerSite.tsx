@@ -12,6 +12,7 @@ import { Promotion } from './SaaSMenuEditor';
 interface SaaSCustomerSiteProps {
   currentTenant: Tenant;
   onAddOrder: (order: Order) => void;
+  fullscreenMode?: boolean;
 }
 
 interface Bairro {
@@ -36,12 +37,19 @@ const initialBairros: Bairro[] = [
   { name: 'Centenário', fee: 6.00 }
 ];
 
-export default function SaaSCustomerSite({ currentTenant, onAddOrder }: SaaSCustomerSiteProps) {
+export default function SaaSCustomerSite({ currentTenant, onAddOrder, fullscreenMode = false }: SaaSCustomerSiteProps) {
   // Navigation inside site
   const [siteTab, setSiteTab] = useState<'menu' | 'pizza' | 'cart' | 'success'>('menu');
 
+  const getRealDayOfWeek = () => {
+    const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    return days[new Date().getDay()];
+  };
+
   // Simulated Day of Week for testing promotions
-  const [simulatedDay, setSimulatedDay] = useState<string>('Tuesday');
+  const [simulatedDay, setSimulatedDay] = useState<string>(() => {
+    return fullscreenMode ? getRealDayOfWeek() : 'Tuesday';
+  });
 
   // Promotions State
   const [promotions, setPromotions] = useState<Promotion[]>([]);
@@ -300,74 +308,115 @@ export default function SaaSCustomerSite({ currentTenant, onAddOrder }: SaaSCust
   );
 
   return (
-    <div className="flex flex-col items-center justify-center p-2">
+    <div className={fullscreenMode ? "w-full min-h-screen bg-stone-50" : "flex flex-col items-center justify-center p-2"}>
       {/* Simulation Controller Header outside the phone */}
-      <div className="w-[330px] bg-stone-800 text-white p-3 rounded-2xl border border-stone-700 shadow-md mb-2.5 text-center">
-        <span className="text-[10px] uppercase tracking-wider font-bold text-orange-400">📅 Dia Comercial Simulado</span>
-        <div className="flex justify-between gap-1 mt-1.5 overflow-x-auto pb-0.5">
-          {[
-            { key: 'Sunday', label: 'Dom' },
-            { key: 'Monday', label: 'Seg' },
-            { key: 'Tuesday', label: 'Ter' },
-            { key: 'Wednesday', label: 'Qua' },
-            { key: 'Thursday', label: 'Qui' },
-            { key: 'Friday', label: 'Sex' },
-            { key: 'Saturday', label: 'Sáb' }
-          ].map((d) => (
-            <button
-              key={d.key}
-              onClick={() => {
-                setSimulatedDay(d.key);
-                setCart([]); // Reset cart to prevent mixed promo rules
-              }}
-              className={`flex-1 text-[10px] font-bold py-1 px-1.5 rounded-lg transition-all cursor-pointer ${
-                simulatedDay === d.key
-                  ? 'bg-orange-600 text-white shadow-3xs'
-                  : 'bg-stone-700 text-stone-300 hover:bg-stone-600'
-              }`}
-            >
-              {d.label}
-            </button>
-          ))}
+      {!fullscreenMode && (
+        <div className="w-[330px] bg-stone-800 text-white p-3 rounded-2xl border border-stone-700 shadow-md mb-2.5 text-center">
+          <span className="text-[10px] uppercase tracking-wider font-bold text-orange-400">📅 Dia Comercial Simulado</span>
+          <div className="flex justify-between gap-1 mt-1.5 overflow-x-auto pb-0.5">
+            {[
+              { key: 'Sunday', label: 'Dom' },
+              { key: 'Monday', label: 'Seg' },
+              { key: 'Tuesday', label: 'Ter' },
+              { key: 'Wednesday', label: 'Qua' },
+              { key: 'Thursday', label: 'Qui' },
+              { key: 'Friday', label: 'Sex' },
+              { key: 'Saturday', label: 'Sáb' }
+            ].map((d) => (
+              <button
+                key={d.key}
+                onClick={() => {
+                  setSimulatedDay(d.key);
+                  setCart([]); // Reset cart to prevent mixed promo rules
+                }}
+                className={`flex-1 text-[10px] font-bold py-1 px-1.5 rounded-lg transition-all cursor-pointer ${
+                  simulatedDay === d.key
+                    ? 'bg-orange-600 text-white shadow-3xs'
+                    : 'bg-stone-700 text-stone-300 hover:bg-stone-600'
+                }`}
+              >
+                {d.label}
+              </button>
+            ))}
+          </div>
+          {/* Active Promos description helper */}
+          <div className="text-[9px] text-stone-300 mt-1.5 flex items-center justify-center gap-1">
+            {simulatedDay === 'Tuesday' ? (
+              <span className="text-orange-400 font-bold">🍕 Terça do Brotinho: Ganhe 1 broto grátis na Pizza Gigante!</span>
+            ) : simulatedDay === 'Wednesday' ? (
+              <span className="text-emerald-400 font-bold">🏷️ Quarta da Borda: 50% de desconto em todas as bordas!</span>
+            ) : (
+              <span>Nenhuma promoção comercial padrão hoje.</span>
+            )}
+          </div>
         </div>
-        {/* Active Promos description helper */}
-        <div className="text-[9px] text-stone-300 mt-1.5 flex items-center justify-center gap-1">
-          {simulatedDay === 'Tuesday' ? (
-            <span className="text-orange-400 font-bold">🍕 Terça do Brotinho: Ganhe 1 broto grátis na Pizza Gigante!</span>
-          ) : simulatedDay === 'Wednesday' ? (
-            <span className="text-emerald-400 font-bold">🏷️ Quarta da Borda: 50% de desconto em todas as bordas!</span>
-          ) : (
-            <span>Nenhuma promoção comercial padrão hoje.</span>
-          )}
-        </div>
-      </div>
+      )}
 
-      {/* Phone Case Simulator */}
-      <div className="w-[330px] h-[640px] bg-stone-900 border-[8px] border-stone-850 rounded-[38px] overflow-hidden shadow-2xl relative flex flex-col">
+      {/* Conditional container based on fullscreenMode */}
+      <div className={fullscreenMode ? "w-full max-w-md mx-auto bg-white min-h-screen flex flex-col shadow-xl border-x border-stone-200 relative" : "w-[330px] h-[640px] bg-stone-900 border-[8px] border-stone-850 rounded-[38px] overflow-hidden shadow-2xl relative flex flex-col"}>
         {/* Speaker & camera bar */}
-        <div className="absolute top-2 left-1/2 -translate-x-1/2 w-28 h-4 bg-stone-850 rounded-full z-20 flex items-center justify-center">
-          <div className="w-8 h-1 bg-stone-900 rounded-full"></div>
-        </div>
+        {!fullscreenMode && (
+          <div className="absolute top-2 left-1/2 -translate-x-1/2 w-28 h-4 bg-stone-850 rounded-full z-20 flex items-center justify-center">
+            <div className="w-8 h-1 bg-stone-900 rounded-full"></div>
+          </div>
+        )}
 
         {/* Browser URL bar representation */}
-        <div className="bg-stone-100 pt-8 pb-2.5 px-4 border-b border-stone-200 flex items-center gap-1.5 text-stone-500 text-[10px]">
-          <span className="bg-white border border-stone-200 px-2.5 py-1 rounded-full text-[9px] text-orange-700 font-bold font-mono flex items-center gap-1 shadow-3xs">
-            🔒 {currentTenant.slug}.resengo.app
-          </span>
-          <span className="ml-auto font-mono text-[9px] text-emerald-600 font-bold animate-pulse">● LIVE</span>
-        </div>
+        {!fullscreenMode && (
+          <div className="bg-stone-100 pt-8 pb-2.5 px-4 border-b border-stone-200 flex items-center gap-1.5 text-stone-500 text-[10px]">
+            <span className="bg-white border border-stone-200 px-2.5 py-1 rounded-full text-[9px] text-orange-700 font-bold font-mono flex items-center gap-1 shadow-3xs">
+              🔒 {currentTenant.slug}.resengo.app
+            </span>
+            <span className="ml-auto font-mono text-[9px] text-emerald-600 font-bold animate-pulse">● LIVE</span>
+          </div>
+        )}
 
         {/* Simulated Site Body */}
         <div className="flex-1 bg-white overflow-y-auto text-stone-750 flex flex-col">
           {/* Header */}
-          <div className="p-4 bg-orange-50/40 border-b border-stone-150 flex items-center gap-2.5">
-            <span className="text-xl bg-white p-2 rounded-xl border border-stone-200 shrink-0 shadow-3xs">
-              {currentTenant.logo}
-            </span>
-            <div>
-              <h4 className="text-xs font-bold text-stone-800 leading-none">{currentTenant.name}</h4>
-              <p className="text-[9px] text-stone-500 mt-1 font-medium">Tempo de Entrega: 30-45 min • Taxa: R$ {currentTenant.deliveryFee.toFixed(2)}</p>
+          <div className="p-4 bg-orange-50/40 border-b border-stone-150 flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              {currentTenant.logo && (currentTenant.logo.startsWith('http') || currentTenant.logo.startsWith('/') || currentTenant.logo.includes('.')) ? (
+                <img
+                  src={currentTenant.logo}
+                  alt={currentTenant.name}
+                  className="w-10 h-10 object-contain rounded-xl border border-stone-200 bg-white p-1 shadow-3xs shrink-0"
+                  onError={(e) => {
+                    e.currentTarget.style.display = 'none';
+                    const parent = e.currentTarget.parentElement;
+                    if (parent && !parent.querySelector('.logo-fallback')) {
+                      const img = document.createElement('img');
+                      img.src = '/logo_do_sistema.png';
+                      img.className = 'logo-fallback w-10 h-10 object-contain rounded-xl border border-stone-200 bg-white p-1 shadow-3xs shrink-0';
+                      parent.insertBefore(img, parent.firstChild);
+                    }
+                  }}
+                />
+              ) : (
+                <img
+                  src="/logo_do_sistema.png"
+                  alt={currentTenant.name}
+                  className="w-10 h-10 object-contain rounded-xl border border-stone-200 bg-white p-1 shadow-3xs shrink-0"
+                />
+              )}
+              <div>
+                <h4 className="text-xs font-bold text-stone-800 leading-none">{currentTenant.name}</h4>
+                <p className="text-[9px] text-stone-500 mt-1 font-medium">Tempo de Entrega: 30-45 min • Taxa: R$ {currentTenant.deliveryFee.toFixed(2)}</p>
+              </div>
             </div>
+
+            {/* Fullscreen Info badge or Back to admin link */}
+            {fullscreenMode && (
+              <div className="flex items-center gap-1.5">
+                <a
+                  href="#"
+                  className="bg-stone-150 hover:bg-stone-200 text-stone-700 border border-stone-250 text-[9px] font-bold px-2.5 py-1 rounded-xl transition-all cursor-pointer font-mono text-center flex items-center"
+                  title="Voltar para o Painel Administrativo"
+                >
+                  PAINEL ADMIN ⚙️
+                </a>
+              </div>
+            )}
           </div>
 
           {/* ACTIVE DAY PROMO CALLOUTS */}
@@ -909,12 +958,14 @@ export default function SaaSCustomerSite({ currentTenant, onAddOrder }: SaaSCust
         </div>
       )}
 
-      <div className="mt-3 flex items-start gap-1.5 max-w-[290px] text-[10px] text-stone-500 bg-white p-3 rounded-xl border border-stone-200 shadow-3xs">
-        <Info className="w-3.5 h-3.5 text-orange-600 shrink-0 mt-0.5" />
-        <p className="leading-normal font-medium">
-          Mude o <strong>Dia Comercial Simulado</strong> para testar a injeção automática de promoções (Terça ou Quarta) na sacola do cliente!
-        </p>
-      </div>
+      {!fullscreenMode && (
+        <div className="mt-3 flex items-start gap-1.5 max-w-[290px] text-[10px] text-stone-500 bg-white p-3 rounded-xl border border-stone-200 shadow-3xs">
+          <Info className="w-3.5 h-3.5 text-orange-600 shrink-0 mt-0.5" />
+          <p className="leading-normal font-medium">
+            Mude o <strong>Dia Comercial Simulado</strong> para testar a injeção automática de promoções (Terça ou Quarta) na sacola do cliente!
+          </p>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Customer, Order } from '../types';
+import { Customer, Order, CustomerAddress } from '../types';
 import { 
   User, 
   Phone, 
@@ -22,39 +22,87 @@ interface SaaSCustomersProps {
   orders: Order[];
   onUpdateCustomers: (updated: Customer[]) => void;
   onSelectCustomerForNewOrder: (customer: Customer) => void;
+  currentTenantId: string;
 }
 
 export default function SaaSCustomers({ 
   customers, 
   orders, 
   onUpdateCustomers, 
-  onSelectCustomerForNewOrder 
+  onSelectCustomerForNewOrder,
+  currentTenantId
 }: SaaSCustomersProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
 
+  // States for multiple addresses management inside editing customer
+  const [editedAddresses, setEditedAddresses] = useState<CustomerAddress[]>([]);
+  const [addrFormName, setAddrFormName] = useState('');
+  const [addrFormCep, setAddrFormCep] = useState('');
+  const [addrFormStreet, setAddrFormStreet] = useState('');
+  const [addrFormNumber, setAddrFormNumber] = useState('');
+  const [addrFormComplement, setAddrFormComplement] = useState('');
+  const [addrFormBairro, setAddrFormBairro] = useState('');
+  const [addrFormCity, setAddrFormCity] = useState('Lages');
+  const [addrFormReference, setAddrFormReference] = useState('');
+  const [addrFormDeliveryFee, setAddrFormDeliveryFee] = useState<number | ''>('');
+  const [editingAddrId, setEditingAddrId] = useState<string | null>(null);
+  const [showAddrForm, setShowAddrForm] = useState(false);
+
   // Form States for adding
   const [newName, setNewName] = useState('');
   const [newPhone, setNewPhone] = useState('');
-  const [newAddress, setNewAddress] = useState('');
+  const [newStreet, setNewStreet] = useState('');
+  const [newNumber, setNewNumber] = useState('');
+  const [newComplement, setNewComplement] = useState('');
   const [newBairro, setNewBairro] = useState('');
   const [newCity, setNewCity] = useState('Lages');
 
   // Form States for editing
   const [editName, setEditName] = useState('');
   const [editPhone, setEditPhone] = useState('');
-  const [editAddress, setEditAddress] = useState('');
+  const [editStreet, setEditStreet] = useState('');
+  const [editNumber, setEditNumber] = useState('');
+  const [editComplement, setEditComplement] = useState('');
   const [editBairro, setEditBairro] = useState('');
   const [editCity, setEditCity] = useState('');
 
+  // Helper to parse address strings of format "Street, Number - Complement" or similar
+  const parseAddress = (fullAddress: string) => {
+    if (!fullAddress) return { street: '', number: '', complement: '' };
+    const parts = fullAddress.split(',');
+    if (parts.length < 2) {
+      return { street: fullAddress, number: '', complement: '' };
+    }
+    const street = parts[0].trim();
+    const rest = parts.slice(1).join(',').trim();
+    const compParts = rest.split(' - ');
+    if (compParts.length >= 2) {
+      return {
+        street,
+        number: compParts[0].trim(),
+        complement: compParts.slice(1).join(' - ').trim()
+      };
+    }
+    return {
+      street,
+      number: rest.trim(),
+      complement: ''
+    };
+  };
+
+  // Filter customers belonging to the current tenant
+  const tenantCustomers = customers.filter(c => c.tenantId === currentTenantId);
+
   // Stats calculations
-  const totalCustomers = customers.length;
+  const totalCustomers = tenantCustomers.length;
   
   // Calculate total spent & orders per customer helper
   const getCustomerStats = (phone: string, name: string) => {
     const cleanPhone = phone.replace(/\D/g, '');
     const customerOrders = orders.filter(o => {
+      if (o.tenantId !== currentTenantId) return false;
       const orderPhone = o.customerPhone.replace(/\D/g, '');
       return (orderPhone && orderPhone === cleanPhone) || o.customerName.toLowerCase() === name.toLowerCase();
     });
@@ -67,10 +115,10 @@ export default function SaaSCustomers({
   };
 
   // Total sales across all registered customers
-  const totalSpentByAll = customers.reduce((sum, c) => sum + getCustomerStats(c.phone, c.name).totalSpent, 0);
+  const totalSpentByAll = tenantCustomers.reduce((sum, c) => sum + getCustomerStats(c.phone, c.name).totalSpent, 0);
 
   // Average ticket of registered customers
-  const totalOrdersCount = customers.reduce((sum, c) => sum + getCustomerStats(c.phone, c.name).orderCount, 0);
+  const totalOrdersCount = tenantCustomers.reduce((sum, c) => sum + getCustomerStats(c.phone, c.name).orderCount, 0);
   const averageSpent = totalOrdersCount > 0 ? totalSpentByAll / totalOrdersCount : 0;
 
   // Handle Add Customer
@@ -84,23 +132,40 @@ export default function SaaSCustomers({
     // Format phone to match general layout
     const formattedPhone = newPhone.trim();
 
-    const exists = customers.some(
+    const exists = tenantCustomers.some(
       c => c.phone.replace(/\D/g, '') === formattedPhone.replace(/\D/g, '')
     );
     if (exists) {
-      alert('⚠️ Já existe um cliente cadastrado com este telefone!');
+      alert('⚠️ Já existe um cliente cadastrado com este telefone nesta pizzaria!');
       return;
     }
 
+    const addrStr = newStreet.trim() 
+      ? `${newStreet.trim()}, ${newNumber.trim()}${newComplement.trim() ? ' - ' + newComplement.trim() : ''}`
+      : undefined;
+
+    const initialAddress: CustomerAddress | undefined = newStreet.trim() ? {
+      id: `addr-${Date.now()}`,
+      name: 'Principal',
+      street: newStreet.trim(),
+      number: newNumber.trim(),
+      complement: newComplement.trim() || undefined,
+      bairro: newBairro.trim(),
+      city: newCity.trim() || 'Lages',
+      reference: undefined,
+      deliveryFee: undefined
+    } : undefined;
+
     const newCustomer: Customer = {
       id: `c-${Date.now()}`,
-      tenantId: 'tenant-1',
+      tenantId: currentTenantId,
       name: newName.trim(),
       phone: formattedPhone,
-      address: newAddress.trim() || undefined,
+      address: addrStr,
       bairro: newBairro.trim() || undefined,
       city: newCity.trim() || 'Lages',
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      addresses: initialAddress ? [initialAddress] : []
     };
 
     const updated = [...customers, newCustomer];
@@ -109,7 +174,9 @@ export default function SaaSCustomers({
     // Reset Form
     setNewName('');
     setNewPhone('');
-    setNewAddress('');
+    setNewStreet('');
+    setNewNumber('');
+    setNewComplement('');
     setNewBairro('');
     setShowAddForm(false);
   };
@@ -119,9 +186,31 @@ export default function SaaSCustomers({
     setEditingCustomer(customer);
     setEditName(customer.name);
     setEditPhone(customer.phone);
-    setEditAddress(customer.address || '');
+    
+    const parsed = parseAddress(customer.address || '');
+    setEditStreet(parsed.street);
+    setEditNumber(parsed.number);
+    setEditComplement(parsed.complement);
+    
     setEditBairro(customer.bairro || '');
     setEditCity(customer.city || 'Lages');
+
+    // Populate addresses list
+    const initialAddresses = customer.addresses && customer.addresses.length > 0 
+      ? customer.addresses 
+      : (customer.address ? [{
+          id: 'addr-primary',
+          name: 'Principal',
+          street: parsed.street,
+          number: parsed.number,
+          complement: parsed.complement || undefined,
+          bairro: customer.bairro || '',
+          city: customer.city || 'Lages',
+          reference: undefined,
+          deliveryFee: undefined
+        }] : []);
+    setEditedAddresses(initialAddresses);
+    setShowAddrForm(false);
   };
 
   const handleSaveEdit = (e: React.FormEvent) => {
@@ -132,15 +221,30 @@ export default function SaaSCustomers({
       return;
     }
 
+    // Sync root address fields with the first address of editedAddresses if present
+    let addrStr = editStreet.trim()
+      ? `${editStreet.trim()}, ${editNumber.trim()}${editComplement.trim() ? ' - ' + editComplement.trim() : ''}`
+      : undefined;
+    let bairroStr = editBairro.trim() || undefined;
+    let cityStr = editCity.trim() || 'Lages';
+
+    if (editedAddresses.length > 0) {
+      const firstAddr = editedAddresses[0];
+      addrStr = `${firstAddr.street}, ${firstAddr.number}${firstAddr.complement ? ' - ' + firstAddr.complement : ''}`;
+      bairroStr = firstAddr.bairro;
+      cityStr = firstAddr.city;
+    }
+
     const updated = customers.map(c => {
       if (c.id === editingCustomer.id) {
         return {
           ...c,
           name: editName.trim(),
           phone: editPhone.trim(),
-          address: editAddress.trim() || undefined,
-          bairro: editBairro.trim() || undefined,
-          city: editCity.trim() || 'Lages'
+          address: addrStr,
+          bairro: bairroStr,
+          city: cityStr,
+          addresses: editedAddresses
         };
       }
       return c;
@@ -159,7 +263,7 @@ export default function SaaSCustomers({
   };
 
   // Filter customers by search query
-  const filteredCustomers = customers.filter(c => {
+  const filteredCustomers = tenantCustomers.filter(c => {
     const q = searchQuery.toLowerCase().trim();
     if (!q) return true;
     return (
@@ -237,8 +341,8 @@ export default function SaaSCustomers({
             <span>Cadastrar Novo Cliente</span>
           </h4>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3">
-            <div className="md:col-span-1.5">
+          <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
+            <div className="md:col-span-2">
               <label className="block text-[10px] text-stone-500 font-bold uppercase mb-1">Nome Completo *</label>
               <input
                 type="text"
@@ -251,7 +355,7 @@ export default function SaaSCustomers({
             </div>
 
             <div className="md:col-span-1">
-              <label className="block text-[10px] text-stone-500 font-bold uppercase mb-1">Telefone (DDD + Celular) *</label>
+              <label className="block text-[10px] text-stone-500 font-bold uppercase mb-1">Telefone *</label>
               <input
                 type="text"
                 required
@@ -262,18 +366,42 @@ export default function SaaSCustomers({
               />
             </div>
 
-            <div className="md:col-span-1.5">
-              <label className="block text-[10px] text-stone-500 font-bold uppercase mb-1">Endereço (Rua, Número, Apto)</label>
+            <div className="md:col-span-2">
+              <label className="block text-[10px] text-stone-500 font-bold uppercase mb-1">Rua / Logradouro *</label>
               <input
                 type="text"
-                placeholder="Ex: Rua Marechal Deodoro, 350"
-                value={newAddress}
-                onChange={(e) => setNewAddress(e.target.value)}
-                className="w-full bg-white border border-stone-200 rounded-lg px-3 py-2 text-stone-900 focus:outline-none focus:border-orange-500 font-medium"
+                required
+                placeholder="Ex: Rua Marechal Deodoro"
+                value={newStreet}
+                onChange={(e) => setNewStreet(e.target.value)}
+                className="w-full bg-white border border-stone-200 rounded-lg px-3 py-2 text-stone-900 focus:outline-none focus:border-orange-500 font-semibold"
               />
             </div>
 
             <div className="md:col-span-1">
+              <label className="block text-[10px] text-stone-500 font-bold uppercase mb-1">Número *</label>
+              <input
+                type="text"
+                required
+                placeholder="Ex: 100"
+                value={newNumber}
+                onChange={(e) => setNewNumber(e.target.value)}
+                className="w-full bg-white border border-stone-200 rounded-lg px-3 py-2 text-stone-900 focus:outline-none focus:border-orange-500 font-semibold text-center"
+              />
+            </div>
+
+            <div className="md:col-span-2">
+              <label className="block text-[10px] text-stone-500 font-bold uppercase mb-1">Complemento</label>
+              <input
+                type="text"
+                placeholder="Ex: Apto 101"
+                value={newComplement}
+                onChange={(e) => setNewComplement(e.target.value)}
+                className="w-full bg-white border border-stone-200 rounded-lg px-3 py-2 text-stone-900 focus:outline-none focus:border-orange-500 font-medium"
+              />
+            </div>
+
+            <div className="md:col-span-2">
               <label className="block text-[10px] text-stone-500 font-bold uppercase mb-1">Bairro</label>
               <input
                 type="text"
@@ -284,7 +412,7 @@ export default function SaaSCustomers({
               />
             </div>
 
-            <div className="md:col-span-1">
+            <div className="md:col-span-2">
               <label className="block text-[10px] text-stone-500 font-bold uppercase mb-1">Cidade</label>
               <input
                 type="text"
@@ -322,8 +450,8 @@ export default function SaaSCustomers({
             <span>Editar Cadastro do Cliente: {editingCustomer.name}</span>
           </h4>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3">
-            <div className="md:col-span-1.5">
+          <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
+            <div className="md:col-span-2">
               <label className="block text-[10px] text-stone-500 font-bold uppercase mb-1">Nome Completo *</label>
               <input
                 type="text"
@@ -345,17 +473,39 @@ export default function SaaSCustomers({
               />
             </div>
 
-            <div className="md:col-span-1.5">
-              <label className="block text-[10px] text-stone-500 font-bold uppercase mb-1">Endereço</label>
+            <div className="md:col-span-2">
+              <label className="block text-[10px] text-stone-500 font-bold uppercase mb-1">Rua / Logradouro *</label>
               <input
                 type="text"
-                value={editAddress}
-                onChange={(e) => setEditAddress(e.target.value)}
-                className="w-full bg-white border border-stone-200 rounded-lg px-3 py-2 text-stone-900 focus:outline-none focus:border-amber-500 font-medium"
+                required
+                value={editStreet}
+                onChange={(e) => setEditStreet(e.target.value)}
+                className="w-full bg-white border border-stone-200 rounded-lg px-3 py-2 text-stone-900 focus:outline-none focus:border-amber-500 font-semibold"
               />
             </div>
 
             <div className="md:col-span-1">
+              <label className="block text-[10px] text-stone-500 font-bold uppercase mb-1">Número *</label>
+              <input
+                type="text"
+                required
+                value={editNumber}
+                onChange={(e) => setEditNumber(e.target.value)}
+                className="w-full bg-white border border-stone-200 rounded-lg px-3 py-2 text-stone-900 focus:outline-none focus:border-amber-500 font-semibold text-center"
+              />
+            </div>
+
+            <div className="md:col-span-2">
+              <label className="block text-[10px] text-stone-500 font-bold uppercase mb-1">Complemento</label>
+              <input
+                type="text"
+                value={editComplement}
+                onChange={(e) => setEditComplement(e.target.value)}
+                className="w-full bg-white border border-stone-200 rounded-lg px-3 py-2 text-stone-900 focus:outline-none focus:border-amber-500 font-medium"
+              />
+            </div>
+
+            <div className="md:col-span-2">
               <label className="block text-[10px] text-stone-500 font-bold uppercase mb-1">Bairro</label>
               <input
                 type="text"
@@ -365,7 +515,7 @@ export default function SaaSCustomers({
               />
             </div>
 
-            <div className="md:col-span-1">
+            <div className="md:col-span-2">
               <label className="block text-[10px] text-stone-500 font-bold uppercase mb-1">Cidade</label>
               <input
                 type="text"
@@ -374,6 +524,245 @@ export default function SaaSCustomers({
                 className="w-full bg-white border border-stone-200 rounded-lg px-3 py-2 text-stone-900 focus:outline-none focus:border-amber-500 font-medium"
               />
             </div>
+          </div>
+
+          {/* Section: Endereços Cadastrados */}
+          <div className="border-t border-amber-200/60 pt-4 mt-4 space-y-4">
+            <div className="flex items-center justify-between">
+              <h5 className="font-bold text-amber-900 text-xs flex items-center gap-1">
+                <MapPin className="w-4 h-4 text-orange-600" />
+                <span>Endereços Cadastrados ({editedAddresses.length})</span>
+              </h5>
+              <button
+                type="button"
+                onClick={() => {
+                  setEditingAddrId(null);
+                  setAddrFormName('');
+                  setAddrFormCep('');
+                  setAddrFormStreet('');
+                  setAddrFormNumber('');
+                  setAddrFormComplement('');
+                  setAddrFormBairro('');
+                  setAddrFormCity('Lages');
+                  setAddrFormReference('');
+                  setAddrFormDeliveryFee('');
+                  setShowAddrForm(true);
+                }}
+                className="px-2.5 py-1 bg-orange-600 hover:bg-orange-500 text-white rounded-lg text-[10px] font-bold flex items-center gap-1 cursor-pointer"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Adicionar Endereço</span>
+              </button>
+            </div>
+
+            {/* List of Addresses */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {editedAddresses.map((addr) => (
+                <div key={addr.id} className="p-3 bg-white border border-amber-100 rounded-xl flex items-start justify-between gap-2 shadow-4xs">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="font-black text-amber-800 text-[9px] bg-amber-50 px-1.5 py-0.5 rounded border border-amber-100 uppercase">{addr.name}</span>
+                      {addr.deliveryFee !== undefined && addr.deliveryFee !== null && (
+                        <span className="text-[9px] text-emerald-700 font-bold bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100">Taxa: R$ {Number(addr.deliveryFee).toFixed(2)}</span>
+                      )}
+                    </div>
+                    <p className="text-stone-700 text-[10px] leading-tight font-medium">
+                      {addr.street}, {addr.number} {addr.complement ? ` - ${addr.complement}` : ''}
+                    </p>
+                    <p className="text-stone-500 text-[9px] font-semibold">
+                      {addr.bairro} • {addr.city} {addr.cep ? `• CEP: ${addr.cep}` : ''}
+                    </p>
+                    {addr.reference && (
+                      <p className="text-orange-600 text-[9px] font-medium italic">Ref: {addr.reference}</p>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditingAddrId(addr.id);
+                        setAddrFormName(addr.name);
+                        setAddrFormCep(addr.cep || '');
+                        setAddrFormStreet(addr.street);
+                        setAddrFormNumber(addr.number);
+                        setAddrFormComplement(addr.complement || '');
+                        setAddrFormBairro(addr.bairro);
+                        setAddrFormCity(addr.city);
+                        setAddrFormReference(addr.reference || '');
+                        setAddrFormDeliveryFee(addr.deliveryFee !== undefined ? addr.deliveryFee : '');
+                        setShowAddrForm(true);
+                      }}
+                      className="p-1 hover:bg-stone-100 text-stone-500 hover:text-stone-700 rounded transition-all cursor-pointer"
+                      title="Editar Endereço"
+                    >
+                      <Edit2 className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (confirm(`Excluir o endereço "${addr.name}"?`)) {
+                          setEditedAddresses(prev => prev.filter(a => a.id !== addr.id));
+                        }
+                      }}
+                      className="p-1 hover:bg-red-50 text-red-500 hover:text-red-700 rounded transition-all cursor-pointer"
+                      title="Excluir Endereço"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+              {editedAddresses.length === 0 && (
+                <p className="text-stone-400 italic text-[10px] col-span-2 py-1">Nenhum endereço cadastrado para este cliente.</p>
+              )}
+            </div>
+
+            {/* Subform to Add/Edit Address */}
+            {showAddrForm && (
+              <div className="p-4 bg-amber-50/50 border border-amber-200/60 rounded-xl space-y-3 animate-fadeIn">
+                <h6 className="font-bold text-stone-800 text-[11px] flex items-center gap-1">
+                  <span>{editingAddrId ? '✏️ Editar Endereço' : '➕ Adicionar Novo Endereço'}</span>
+                </h6>
+                <div className="grid grid-cols-1 sm:grid-cols-6 gap-2">
+                  <div className="sm:col-span-2">
+                    <label className="block text-[9px] text-stone-500 font-bold uppercase mb-0.5">Identificação (Ex: Casa, Trabalho) *</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="Ex: Casa, Trabalho, Casa da mãe"
+                      value={addrFormName}
+                      onChange={(e) => setAddrFormName(e.target.value)}
+                      className="w-full bg-white border border-stone-200 rounded px-2.5 py-1.5 text-stone-900 focus:outline-none focus:border-orange-500 font-bold"
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className="block text-[9px] text-stone-500 font-bold uppercase mb-0.5">CEP</label>
+                    <input
+                      type="text"
+                      placeholder="Ex: 88501-000"
+                      value={addrFormCep}
+                      onChange={(e) => setAddrFormCep(e.target.value)}
+                      className="w-full bg-white border border-stone-200 rounded px-2.5 py-1.5 text-stone-900 focus:outline-none focus:border-orange-500 font-semibold"
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className="block text-[9px] text-stone-500 font-bold uppercase mb-0.5">Taxa de Entrega (R$)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      placeholder="Padrão"
+                      value={addrFormDeliveryFee}
+                      onChange={(e) => setAddrFormDeliveryFee(e.target.value !== '' ? Number(e.target.value) : '')}
+                      className="w-full bg-white border border-stone-200 rounded px-2.5 py-1.5 text-stone-900 focus:outline-none focus:border-orange-500 font-mono font-bold"
+                    />
+                  </div>
+                  <div className="sm:col-span-4">
+                    <label className="block text-[9px] text-stone-500 font-bold uppercase mb-0.5">Rua / Logradouro *</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="Ex: Av. Brasil"
+                      value={addrFormStreet}
+                      onChange={(e) => setAddrFormStreet(e.target.value)}
+                      className="w-full bg-white border border-stone-200 rounded px-2.5 py-1.5 text-stone-900 focus:outline-none focus:border-orange-500 font-medium"
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className="block text-[9px] text-stone-500 font-bold uppercase mb-0.5">Número *</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="Ex: 123"
+                      value={addrFormNumber}
+                      onChange={(e) => setAddrFormNumber(e.target.value)}
+                      className="w-full bg-white border border-stone-200 rounded px-2.5 py-1.5 text-stone-900 focus:outline-none focus:border-orange-500 font-medium text-center"
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className="block text-[9px] text-stone-500 font-bold uppercase mb-0.5">Complemento</label>
+                    <input
+                      type="text"
+                      placeholder="Ex: Apto 102"
+                      value={addrFormComplement}
+                      onChange={(e) => setAddrFormComplement(e.target.value)}
+                      className="w-full bg-white border border-stone-200 rounded px-2.5 py-1.5 text-stone-900 focus:outline-none focus:border-orange-500"
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className="block text-[9px] text-stone-500 font-bold uppercase mb-0.5">Bairro *</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="Ex: Centro"
+                      value={addrFormBairro}
+                      onChange={(e) => setAddrFormBairro(e.target.value)}
+                      className="w-full bg-white border border-stone-200 rounded px-2.5 py-1.5 text-stone-900 focus:outline-none focus:border-orange-500 font-semibold"
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className="block text-[9px] text-stone-500 font-bold uppercase mb-0.5">Cidade *</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="Ex: Lages"
+                      value={addrFormCity}
+                      onChange={(e) => setAddrFormCity(e.target.value)}
+                      className="w-full bg-white border border-stone-200 rounded px-2.5 py-1.5 text-stone-900 focus:outline-none focus:border-orange-500 font-medium"
+                    />
+                  </div>
+                  <div className="sm:col-span-6">
+                    <label className="block text-[9px] text-stone-500 font-bold uppercase mb-0.5">Ponto de Referência</label>
+                    <input
+                      type="text"
+                      placeholder="Ex: Próximo ao mercado central"
+                      value={addrFormReference}
+                      onChange={(e) => setAddrFormReference(e.target.value)}
+                      className="w-full bg-white border border-stone-200 rounded px-2.5 py-1.5 text-stone-900 focus:outline-none focus:border-orange-500"
+                    />
+                  </div>
+                </div>
+                <div className="flex justify-end gap-1.5 pt-1.5 border-t border-amber-200/40">
+                  <button
+                    type="button"
+                    onClick={() => setShowAddrForm(false)}
+                    className="px-3 py-1.5 bg-stone-100 hover:bg-stone-200 text-stone-600 rounded font-bold cursor-pointer text-[10px]"
+                  >
+                    Descartar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!addrFormName || !addrFormStreet || !addrFormNumber || !addrFormBairro || !addrFormCity) {
+                        alert('⚠️ Identificação, Rua, Número, Bairro e Cidade são obrigatórios!');
+                        return;
+                      }
+                      const newAddr: CustomerAddress = {
+                        id: editingAddrId || `addr-${Date.now()}`,
+                        name: addrFormName.trim(),
+                        cep: addrFormCep.trim() || undefined,
+                        street: addrFormStreet.trim(),
+                        number: addrFormNumber.trim(),
+                        complement: addrFormComplement.trim() || undefined,
+                        bairro: addrFormBairro.trim(),
+                        city: addrFormCity.trim(),
+                        reference: addrFormReference.trim() || undefined,
+                        deliveryFee: addrFormDeliveryFee !== '' ? Number(addrFormDeliveryFee) : undefined
+                      };
+
+                      if (editingAddrId) {
+                        setEditedAddresses(prev => prev.map(a => a.id === editingAddrId ? newAddr : a));
+                      } else {
+                        setEditedAddresses(prev => [...prev, newAddr]);
+                      }
+                      setShowAddrForm(false);
+                    }}
+                    className="px-3 py-1.5 bg-orange-600 hover:bg-orange-500 text-white rounded font-black text-[10px] cursor-pointer"
+                  >
+                    {editingAddrId ? 'Salvar Alteração' : 'Adicionar'}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="flex justify-end gap-2 pt-2 border-t border-amber-200">

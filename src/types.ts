@@ -98,6 +98,7 @@ export interface OrderItem {
   isCombo?: boolean;
   removedComboItems?: string[]; // Names of removed items from standard combo
   addedExtraItems?: { name: string; price: number }[]; // Added extras to combo
+  cocaDifference?: number; // Difference added when Coca-Cola is chosen in combo
 }
 
 export interface OrderHistoryLog {
@@ -128,6 +129,7 @@ export interface Order {
   discount: number;
   total: number;
   paymentMethod: 'Cartão' | 'Pix' | 'Dinheiro';
+  cocaDifference?: number; // Accumulated surcharge from combo Coca-Cola selections
   
   // Timing & Driver
   createdAt: string;
@@ -140,6 +142,19 @@ export interface Order {
   history: OrderHistoryLog[];
 }
 
+export interface CustomerAddress {
+  id: string;
+  name: string; // Ex: Casa, Trabalho, Casa da mãe
+  cep?: string;
+  street: string;
+  number: string;
+  complement?: string;
+  bairro: string;
+  city: string;
+  reference?: string;
+  deliveryFee?: number; // Each address can have its own delivery fee
+}
+
 export interface Customer {
   id: string;
   tenantId: string;
@@ -149,6 +164,7 @@ export interface Customer {
   bairro?: string;
   city?: string;
   createdAt: string;
+  addresses?: CustomerAddress[];
 }
 
 export interface Driver {

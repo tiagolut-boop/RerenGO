@@ -51,7 +51,9 @@ export default function ResengoAuthPortal({ tenants, onSetTenants, onLoginSucces
   const [regCity, setRegCity] = useState('Lages');
   const [regState, setRegState] = useState('SC');
   const [regBairro, setRegBairro] = useState('');
-  const [regAddress, setRegAddress] = useState('');
+  const [regStreet, setRegStreet] = useState('');
+  const [regNumber, setRegNumber] = useState('');
+  const [regComplement, setRegComplement] = useState('');
   const [regPlan, setRegPlan] = useState<'basic' | 'pro'>('basic');
   const [regSuccess, setRegSuccess] = useState(false);
 
@@ -71,7 +73,7 @@ export default function ResengoAuthPortal({ tenants, onSetTenants, onLoginSucces
     const passwordClean = loginPassword.trim();
 
     // Check Master Admin Credentials
-    if (emailClean === 'pizzariaresenhalages@gmail.com' && passwordClean === 'resengo2026') {
+    if (emailClean === 'tiago.lut@gmail.com' && passwordClean === 'Lutando7*pizzaria') {
       const masterMockTenant: Tenant = {
         id: 'master',
         name: 'Master Admin',
@@ -80,11 +82,23 @@ export default function ResengoAuthPortal({ tenants, onSetTenants, onLoginSucces
         type: 'pizzaria',
         deliveryFee: 0,
         phone: '(49) 99805-9293',
-        email: 'pizzariaresenhalages@gmail.com',
+        email: 'tiago.lut@gmail.com',
         isActive: true
       };
       onLoginSuccess(masterMockTenant, true);
       return;
+    }
+
+    // Check Test Credentials
+    if (emailClean === 'teste@teste.com' && passwordClean === '123456') {
+      const defaultTenant = tenants.find(t => t.id === 'tenant-1') || tenants[0];
+      if (defaultTenant) {
+        onLoginSuccess({
+          ...defaultTenant,
+          isActive: true
+        }, false);
+        return;
+      }
     }
 
     // Check Regular Tenant
@@ -92,7 +106,7 @@ export default function ResengoAuthPortal({ tenants, onSetTenants, onLoginSucces
     if (found) {
       if (found.password === passwordClean) {
         if (found.isActive === false) {
-          setLoginError('❌ Esta conta está INATIVA/BLOQUEADA. Por favor, regularize seu pagamento entrando em contato com pizzariaresenhalages@gmail.com.');
+          setLoginError('❌ Esta conta está INATIVA/BLOQUEADA. Por favor, regularize seu pagamento entrando em contato com tiago.lut@gmail.com.');
           return;
         }
         onLoginSuccess(found, false);
@@ -112,7 +126,7 @@ export default function ResengoAuthPortal({ tenants, onSetTenants, onLoginSucces
     }
 
     // Check if email already registered
-    if (tenants.some(t => t.email?.trim().toLowerCase() === regEmail.trim().toLowerCase()) || regEmail.trim().toLowerCase() === 'pizzariaresenhalages@gmail.com') {
+    if (tenants.some(t => t.email?.trim().toLowerCase() === regEmail.trim().toLowerCase()) || regEmail.trim().toLowerCase() === 'tiago.lut@gmail.com') {
       alert('❌ Este e-mail já está em uso.');
       return;
     }
@@ -126,7 +140,7 @@ export default function ResengoAuthPortal({ tenants, onSetTenants, onLoginSucces
       id: `tenant-${Date.now()}`,
       name: regName,
       slug: newSlug || `pizzaria-${Date.now()}`,
-      logo: '🍕',
+      logo: '/logo_do_sistema.png',
       type: 'pizzaria',
       deliveryFee: 8.00,
       phone: regPhone,
@@ -143,7 +157,7 @@ export default function ResengoAuthPortal({ tenants, onSetTenants, onLoginSucces
       city: regCity,
       state: regState,
       bairro: regBairro,
-      address: regAddress,
+      address: `${regStreet.trim()}, ${regNumber.trim()}${regComplement.trim() ? ' - ' + regComplement.trim() : ''}`,
       corporateName: regIsPF ? regRepName : regName,
     };
 
@@ -175,7 +189,7 @@ Sucesso,
 Equipe de Tecnologia Resengo`;
 
     setSimulatedEmail({
-      to: 'pizzariaresenhalages@gmail.com',
+      to: 'tiago.lut@gmail.com',
       from: 'sistema@resengo.com.br',
       subject: `🔔 Novo Parceiro Cadastrado: ${newTenant.name}`,
       body: emailBody
@@ -194,7 +208,7 @@ Equipe de Tecnologia Resengo`;
       {/* Top Header Navigation */}
       <header className="border-b border-stone-800 bg-stone-950/40 backdrop-blur-md px-6 py-4 flex items-center justify-between sticky top-0 z-40">
         <div className="flex items-center gap-3">
-          <img src="/LOGO.png" alt="Resengo Logo" className="w-9 h-9 object-contain rounded-xl shadow-md border border-stone-800" referrerPolicy="no-referrer" />
+          <img src="/logo_do_sistema.png" alt="Resengo Logo" className="w-9 h-9 object-contain rounded-xl shadow-md border border-stone-800" />
           <div>
             <h1 className="font-display font-black text-sm uppercase tracking-wider text-white">RESENGO</h1>
             <p className="text-[9px] text-stone-500 font-mono font-bold tracking-widest uppercase">SaaS para Gestão de Pizzarias</p>
@@ -202,7 +216,7 @@ Equipe de Tecnologia Resengo`;
         </div>
         <div className="flex items-center gap-2.5 text-xs">
           <span className="text-stone-400 font-semibold hidden sm:inline">Precisa de ajuda?</span>
-          <a href="mailto:pizzariaresenhalages@gmail.com" className="bg-stone-850 hover:bg-stone-800 text-stone-200 border border-stone-800 rounded-lg px-3 py-1.5 font-bold transition-all">
+          <a href="mailto:tiago.lut@gmail.com" className="bg-stone-850 hover:bg-stone-800 text-stone-200 border border-stone-800 rounded-lg px-3 py-1.5 font-bold transition-all">
             Fale Conosco
           </a>
         </div>
@@ -304,20 +318,7 @@ Equipe de Tecnologia Resengo`;
               </div>
             </div>
 
-            <div className="pt-6 border-t border-stone-900/80 mt-6 space-y-2">
-              <div className="bg-stone-900/90 rounded-xl p-3 border border-stone-850 text-[10px] space-y-1">
-                <p className="text-stone-400 font-bold uppercase tracking-wider flex items-center gap-1.5">
-                  <Shield className="w-3.5 h-3.5 text-orange-500" />
-                  Acessos para Demonstração:
-                </p>
-                <div className="font-mono text-stone-300 space-y-1">
-                  <p><span className="text-orange-400">Master SaaS:</span> pizzariaresenhalages@gmail.com</p>
-                  <p><span className="text-orange-400">Senha:</span> resengo2026</p>
-                  <p className="text-[9px] text-stone-500 pt-1 border-t border-stone-850 mt-1">Pode entrar como Master para gerenciar e bloquear/desbloquear outras pizzarias!</p>
-                  <p className="text-[9px] text-stone-500"><span className="text-red-400">Pizzaria Padrão:</span> contato@resenhapizzas.com.br / 123456</p>
-                </div>
-              </div>
-            </div>
+
           </div>
 
           {/* Right Column: Interactive Login/Register Form */}
@@ -547,22 +548,50 @@ Equipe de Tecnologia Resengo`;
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                   <div className="space-y-1">
-                    <label className="block font-bold text-stone-400 uppercase text-[9px] tracking-wider">Bairro</label>
+                    <label className="block font-bold text-stone-400 uppercase text-[9px] tracking-wider">Rua / Logradouro *</label>
                     <input
                       type="text"
-                      value={regBairro}
-                      onChange={(e) => setRegBairro(e.target.value)}
-                      placeholder="Ex: Centro"
+                      required
+                      value={regStreet}
+                      onChange={(e) => setRegStreet(e.target.value)}
+                      placeholder="Ex: Av. XV de Novembro"
                       className="w-full bg-stone-900 border border-stone-800 focus:border-red-500 text-white placeholder-stone-600 rounded-xl py-2.5 px-3 font-semibold outline-none transition-all"
                     />
                   </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1">
+                      <label className="block font-bold text-stone-400 uppercase text-[9px] tracking-wider">Número *</label>
+                      <input
+                        type="text"
+                        required
+                        value={regNumber}
+                        onChange={(e) => setRegNumber(e.target.value)}
+                        placeholder="Ex: 100"
+                        className="w-full bg-stone-900 border border-stone-800 focus:border-red-500 text-white placeholder-stone-600 rounded-xl py-2.5 px-3 font-semibold outline-none transition-all text-center"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="block font-bold text-stone-400 uppercase text-[9px] tracking-wider">Complemento</label>
+                      <input
+                        type="text"
+                        value={regComplement}
+                        onChange={(e) => setRegComplement(e.target.value)}
+                        placeholder="Ex: Sala 2"
+                        className="w-full bg-stone-900 border border-stone-800 focus:border-red-500 text-white placeholder-stone-600 rounded-xl py-2.5 px-3 font-semibold outline-none transition-all"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                   <div className="space-y-1">
-                    <label className="block font-bold text-stone-400 uppercase text-[9px] tracking-wider">Endereço Completo</label>
+                    <label className="block font-bold text-stone-400 uppercase text-[9px] tracking-wider">Bairro *</label>
                     <input
                       type="text"
-                      value={regAddress}
-                      onChange={(e) => setRegAddress(e.target.value)}
-                      placeholder="Ex: Av. XV de Novembro, 100"
+                      required
+                      value={regBairro}
+                      onChange={(e) => setRegBairro(e.target.value)}
+                      placeholder="Ex: Centro"
                       className="w-full bg-stone-900 border border-stone-800 focus:border-red-500 text-white placeholder-stone-600 rounded-xl py-2.5 px-3 font-semibold outline-none transition-all"
                     />
                   </div>

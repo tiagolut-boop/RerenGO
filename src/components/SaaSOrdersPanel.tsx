@@ -5,7 +5,7 @@
 
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Order, OrderItem, OrderStatus, OrderType, Product, PizzaSapor, PizzaBorder, PizzaSize, Customer } from '../types';
+import { Order, OrderItem, OrderStatus, OrderType, Product, PizzaSapor, PizzaBorder, PizzaSize, Customer, CustomerAddress } from '../types';
 import { pizzaFlavors, pizzaBorders, products, pizzaSizes } from '../data/mockData';
 import { Edit, Save, Plus, Trash2, Clock, MapPin, User, Phone, CheckCircle, HelpCircle, XCircle, FileText, ArrowRight, Printer } from 'lucide-react';
 
@@ -106,6 +106,11 @@ const getFlavorsFromItem = (item: OrderItem) => {
   return [];
 };
 
+const getIngredientsForFlavor = (flavorName: string): string => {
+  const match = pizzaFlavors.find(f => f.name.toLowerCase() === flavorName.toLowerCase());
+  return match?.ingredients || '';
+};
+
 const getPizzaSizeText = (item: OrderItem) => {
   if (item.size) {
     let sizeName = item.size.name.toUpperCase();
@@ -122,6 +127,63 @@ const getPizzaSizeText = (item: OrderItem) => {
     baseName = 'PIZZA ' + baseName;
   }
   return baseName;
+};
+
+const parseComboDetails = (name: string) => {
+  // Try matching format: "COMBO X - Size Name (Pizzas: F1 / F2 • Broto Doce: Sweet • Refri: Soda)"
+  const partsMatch = name.match(/^([^(]+)\((.+)\)$/);
+  if (!partsMatch) {
+    return {
+      comboTitle: name.includes('(') ? name.split('(')[0].trim() : name,
+      pizzaSize: '',
+      flavors: [] as string[],
+      sweetFlavor: '',
+      drink: ''
+    };
+  }
+
+  const comboHeader = partsMatch[1].trim(); // "COMBO X - Size Name"
+  const comboBody = partsMatch[2].trim(); // "Pizzas: F1 / F2 • Broto Doce: Sweet • Refri: Soda"
+
+  let comboTitle = comboHeader;
+  let pizzaSize = '';
+  if (comboHeader.includes(' - ')) {
+    const parts = comboHeader.split(' - ');
+    comboTitle = parts[0].trim();
+    pizzaSize = parts[1].trim();
+  } else {
+    const matchCombo = comboHeader.match(/^(combo\s+\d+)/i);
+    if (matchCombo) {
+      comboTitle = matchCombo[1].trim();
+      pizzaSize = comboHeader.replace(matchCombo[1], '').trim();
+    }
+  }
+
+  let flavors: string[] = [];
+  const pizzasMatch = comboBody.match(/Pizzas:\s*([^•]+)/i);
+  if (pizzasMatch) {
+    flavors = pizzasMatch[1].split('/').map(f => f.trim()).filter(Boolean);
+  }
+
+  let sweetFlavor = '';
+  const sweetMatch = comboBody.match(/Broto\s+Doce:\s*([^•]+)/i);
+  if (sweetMatch) {
+    sweetFlavor = sweetMatch[1].trim();
+  }
+
+  let drink = '';
+  const drinkMatch = comboBody.match(/Refri:\s*(.+)$/i);
+  if (drinkMatch) {
+    drink = drinkMatch[1].trim();
+  }
+
+  return {
+    comboTitle,
+    pizzaSize,
+    flavors,
+    sweetFlavor,
+    drink
+  };
 };
 
 interface SaaSOrdersPanelProps {
@@ -270,20 +332,6 @@ export default function SaaSOrdersPanel({
     onUpdateCustomers(updatedList);
   };
 
-  // Triggered when a customer is selected for a new order from the CRM tab
-  React.useEffect(() => {
-    if (preSelectedCustomer) {
-      setIsPOSActive(true);
-      setPosStep('items');
-      setSelectedPOSCustomer(preSelectedCustomer);
-      if (preSelectedCustomer.bairro) {
-        const match = bairros.find(b => b.name.toLowerCase() === preSelectedCustomer.bairro!.toLowerCase());
-        setPosDeliveryFee(match ? match.fee : 8.0);
-      }
-      onClearPreSelectedCustomer();
-    }
-  }, [preSelectedCustomer, bairros]);
-
   // Audio Feedback for Special Flavors
   const playSpecialAlertSound = () => {
     try {
@@ -329,8 +377,79 @@ export default function SaaSOrdersPanel({
       
       if (printWindow) {
         const itemsHtml = orderToPrint.items.map(item => {
-          const flavorsText = item.flavors && item.flavors.length > 0
-            ? `<div style="font-size: 10px; color: #333; padding-left: 6px; margin: 2px 0;"><strong>Sabores:</strong> ${item.flavors.map(f => `${f.name}${f.isSpecial ? ' (Especial)' : ''}`).join(' + ')}</div>`
+          const isCombo = item.isCombo || item.name.toLowerCase().includes('combo');
+          if (isCombo) {
+            const parsed = parseComboDetails(item.name);
+            const isCocaDrink = parsed.drink.toLowerCase().includes('coca');
+
+            const comboFractionLabel = parsed.flavors.length === 1 ? '1 SABOR' : `${parsed.flavors.length} SABORES`;
+            const comboFractionMultiplier = parsed.flavors.length === 1 ? '' : `1/${parsed.flavors.length}`;
+            const comboFlavorMarker = parsed.flavors.length === 1 ? '' : `${comboFractionMultiplier} `;
+
+            const flavorsText = parsed.flavors.map(fl => {
+              const ingredients = getIngredientsForFlavor(fl);
+              return `
+                <div style="margin: 2px 0 4px 6px; line-height: 1.2;">
+                  • <span style="font-weight: bold;">${comboFlavorMarker}${fl.toUpperCase()}</span>
+                  ${ingredients ? `<div style="font-size: 8.5px; color: #444; font-style: italic; padding-left: 10px; line-height: 1.1;">(${ingredients.toLowerCase()})</div>` : ''}
+                </div>
+              `;
+            }).join('');
+
+            const sweetFlavorHtml = `
+              <div style="font-weight: bold; font-size: 11px; margin-top: 6px; border-left: 3px solid #000; padding-left: 6px; background: #f0f0f0; text-transform: uppercase;">
+                🍓 BROTINHO: ${parsed.sweetFlavor.toUpperCase()}
+              </div>
+            `;
+
+            const drinkHtml = isCocaDrink
+              ? `
+                <div style="font-weight: bold; font-size: 11px; margin-top: 4px; border-left: 3px solid #000; padding-left: 6px; background: #f0f0f0; text-transform: uppercase;">
+                  🥤 BEBIDA: ${parsed.drink.toUpperCase()}
+                </div>
+              `
+              : `
+                <div style="font-weight: bold; font-size: 11px; margin-top: 4px; padding-left: 6px; text-transform: uppercase;">
+                  • BEBIDA: ${parsed.drink.toUpperCase()}
+                </div>
+              `;
+
+            const extraHtml = item.cocaDifference && item.cocaDifference > 0
+              ? `<div style="font-size: 10px; font-weight: bold; padding-left: 6px; margin-top: 2px;">• DIFERENÇA COCA-COLA: + R$ ${item.cocaDifference.toFixed(2)}</div>`
+              : '';
+
+            return `
+              <div style="border-bottom: 1px dashed #888; padding: 4px 0; margin-bottom: 4px;">
+                <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 11px;">
+                  <span>${item.quantity}x ${parsed.comboTitle.toUpperCase()} - ${parsed.pizzaSize.toUpperCase()}</span>
+                  ${type === 'Completo' ? `<span>R$ ${(item.price * item.quantity).toFixed(2)}</span>` : ''}
+                </div>
+                <div style="font-size: 10px; color: #111; padding-left: 6px; margin: 3px 0;">
+                  <strong style="text-transform: uppercase;">- ${comboFractionLabel}</strong>
+                  ${flavorsText}
+                </div>
+                ${sweetFlavorHtml}
+                ${drinkHtml}
+                ${extraHtml}
+                ${item.notes ? `<div style="font-size: 10px; font-weight: bold; margin-top: 6px; border-left: 3px solid #000; padding-left: 6px; background: #f0f0f0;">OBS: ${item.notes.toUpperCase()}</div>` : ''}
+              </div>
+            `;
+          }
+
+          const flavorsArray = item.flavors && item.flavors.length > 0
+            ? item.flavors.map(f => ({ name: f.name, isSpecial: f.isSpecial, ingredients: f.ingredients || getIngredientsForFlavor(f.name) }))
+            : getFlavorsFromItem(item).map(name => ({ name, isSpecial: false, ingredients: getIngredientsForFlavor(name) }));
+
+          const flavorsText = flavorsArray.length > 0
+            ? `<div style="font-size: 10px; color: #111; padding-left: 6px; margin: 3px 0;">
+                <strong style="text-transform: uppercase;">Sabores:</strong>
+                ${flavorsArray.map(f => `
+                  <div style="margin: 2px 0 4px 6px; line-height: 1.2;">
+                    • <span style="font-weight: bold;">${f.name.toUpperCase()}</span>${f.isSpecial ? ' <span style="font-size: 8px; color: #555;">(ESPECIAL)</span>' : ''}
+                    ${f.ingredients ? `<div style="font-size: 8.5px; color: #444; font-style: italic; padding-left: 10px; line-height: 1.1;">(${f.ingredients.toLowerCase()})</div>` : ''}
+                  </div>
+                `).join('')}
+               </div>`
             : '';
           const borderText = item.border
             ? `<div style="font-size: 10px; color: #333; padding-left: 6px; margin: 2px 0;"><strong>Borda:</strong> ${item.border.name}</div>`
@@ -492,7 +611,9 @@ export default function SaaSOrdersPanel({
   // New customer registration fields
   const [newCustName, setNewCustName] = useState('');
   const [newCustPhone, setNewCustPhone] = useState('');
-  const [newCustAddress, setNewCustAddress] = useState('');
+  const [newCustStreet, setNewCustStreet] = useState('');
+  const [newCustNumber, setNewCustNumber] = useState('');
+  const [newCustComplement, setNewCustComplement] = useState('');
   const [newCustBairro, setNewCustBairro] = useState('');
   const [newCustCity, setNewCustCity] = useState('Lages');
 
@@ -525,6 +646,86 @@ export default function SaaSOrdersPanel({
   const [posComboSweetFlavor, setPosComboSweetFlavor] = useState<PizzaSapor | null>(null);
   const [posComboDrink, setPosComboDrink] = useState<Product | null>(null);
   const [posComboPrice, setPosComboPrice] = useState<number>(0);
+  const [posComboCocaDiff, setPosComboCocaDiff] = useState<number | ''>('');
+
+  // Multiple address selection states for POS
+  const [selectedPOSAddress, setSelectedPOSAddress] = useState<CustomerAddress | null>(null);
+  const [isAddingPOSAddress, setIsAddingPOSAddress] = useState(false);
+  const [posNewAddrName, setPosNewAddrName] = useState('');
+  const [posNewAddrStreet, setPosNewAddrStreet] = useState('');
+  const [posNewAddrNumber, setPosNewAddrNumber] = useState('');
+  const [posNewAddrComplement, setPosNewAddrComplement] = useState('');
+  const [posNewAddrBairro, setPosNewAddrBairro] = useState('');
+  const [posNewAddrCity, setPosNewAddrCity] = useState('Lages');
+  const [posNewAddrCep, setPosNewAddrCep] = useState('');
+  const [posNewAddrReference, setPosNewAddrReference] = useState('');
+  const [posNewAddrDeliveryFee, setPosNewAddrDeliveryFee] = useState<number | ''>('');
+
+  const getCustomerAddresses = (customer: Customer | null): CustomerAddress[] => {
+    if (!customer) return [];
+    if (customer.addresses && customer.addresses.length > 0) {
+      return customer.addresses;
+    }
+    if (customer.address) {
+      return [{
+        id: 'addr-principal',
+        name: 'Principal',
+        street: customer.address.split(',')[0] || customer.address,
+        number: customer.address.split(',')[1]?.trim() || '',
+        bairro: customer.bairro || 'Centro',
+        city: customer.city || 'Lages'
+      }];
+    }
+    return [];
+  };
+
+  const selectPOSCustomerAndDefaultAddress = (c: Customer, serviceType: OrderType) => {
+    setSelectedPOSCustomer(c);
+    const addrs = c.addresses || [];
+    if (addrs.length > 0) {
+      setSelectedPOSAddress(addrs[0]);
+      if (serviceType === 'Delivery') {
+        if (addrs[0].deliveryFee !== undefined) {
+          setPosDeliveryFee(addrs[0].deliveryFee);
+        } else if (addrs[0].bairro) {
+          const match = bairros.find(b => b.name.toLowerCase() === addrs[0].bairro.toLowerCase());
+          setPosDeliveryFee(match ? match.fee : 8.0);
+        } else {
+          setPosDeliveryFee(8.0);
+        }
+      }
+    } else if (c.address) {
+      const principalAddr: CustomerAddress = {
+        id: 'addr-principal',
+        name: 'Principal',
+        street: c.address.split(',')[0] || c.address,
+        number: c.address.split(',')[1]?.trim() || '',
+        bairro: c.bairro || 'Centro',
+        city: c.city || 'Lages'
+      };
+      setSelectedPOSAddress(principalAddr);
+      if (serviceType === 'Delivery') {
+        if (c.bairro) {
+          const match = bairros.find(b => b.name.toLowerCase() === c.bairro.toLowerCase());
+          setPosDeliveryFee(match ? match.fee : 8.0);
+        } else {
+          setPosDeliveryFee(8.0);
+        }
+      }
+    } else {
+      setSelectedPOSAddress(null);
+    }
+  };
+
+  // Triggered when a customer is selected for a new order from the CRM tab
+  React.useEffect(() => {
+    if (preSelectedCustomer) {
+      setIsPOSActive(true);
+      setPosStep('customer'); // Let them confirm/select address in Step 1
+      selectPOSCustomerAndDefaultAddress(preSelectedCustomer, posType);
+      onClearPreSelectedCustomer();
+    }
+  }, [preSelectedCustomer, bairros, posType]);
 
   // Filter queries for combo selections
   const [comboSearchQuery1, setComboSearchQuery1] = useState('');
@@ -560,8 +761,9 @@ export default function SaaSOrdersPanel({
     const nameTrimmed = newCust.name.trim().toLowerCase();
     const phoneTrimmed = newCust.phone.replace(/\D/g, '');
 
-    const phoneExists = customers.some(c => c.phone.replace(/\D/g, '') === phoneTrimmed);
-    const nameExists = customers.some(c => c.name.trim().toLowerCase() === nameTrimmed);
+    const tenantCustomers = customers.filter(c => c.tenantId === currentTenantId);
+    const phoneExists = tenantCustomers.some(c => c.phone.replace(/\D/g, '') === phoneTrimmed);
+    const nameExists = tenantCustomers.some(c => c.name.trim().toLowerCase() === nameTrimmed);
 
     if (phoneExists) {
       alert(`⚠️ ATENÇÃO: O telefone "${newCust.phone}" já pertence a outro cadastro! Não é permitido cadastrar o mesmo telefone.`);
@@ -572,20 +774,27 @@ export default function SaaSOrdersPanel({
       alert(`⚠️ AVISO: Já existe um cliente com o nome "${newCust.name}"!`);
     }
 
+    const parsedAddr: CustomerAddress[] = [];
+    if (newCust.address) {
+      parsedAddr.push({
+        id: `addr-${Date.now()}`,
+        name: 'Principal',
+        street: newCust.address.split(',')[0] || newCust.address,
+        number: newCust.address.split(',')[1]?.trim() || '',
+        bairro: newCust.bairro || 'Centro',
+        city: newCust.city || 'Lages'
+      });
+    }
+
     const created: Customer = {
       id: `c-${Date.now()}`,
-      ...newCust
+      ...newCust,
+      addresses: parsedAddr
     };
 
     const updatedList = [...customers, created];
     saveCustomersToStorage(updatedList);
-    setSelectedPOSCustomer(created);
-    
-    // Auto lookup delivery fee if delivery type
-    if (posType === 'Delivery' && created.bairro) {
-      const match = bairros.find(b => b.name.toLowerCase() === created.bairro.toLowerCase());
-      setPosDeliveryFee(match ? match.fee : 8.0);
-    }
+    selectPOSCustomerAndDefaultAddress(created, posType);
     
     return true;
   };
@@ -656,6 +865,31 @@ export default function SaaSOrdersPanel({
     const custName = selectedPOSCustomer ? selectedPOSCustomer.name : 'Consumidor Geral';
     const custPhone = selectedPOSCustomer ? selectedPOSCustomer.phone : '(00) 00000-0000';
 
+    const getFormattedAddress = (): string | undefined => {
+      if (posType !== 'Delivery') return undefined;
+      if (selectedPOSAddress) {
+        let addrStr = `${selectedPOSAddress.street}, ${selectedPOSAddress.number}`;
+        if (selectedPOSAddress.complement) {
+          addrStr += ` - ${selectedPOSAddress.complement}`;
+        }
+        if (selectedPOSAddress.reference) {
+          addrStr += ` (Ref: ${selectedPOSAddress.reference})`;
+        }
+        return addrStr;
+      }
+      return selectedPOSCustomer ? selectedPOSCustomer.address : undefined;
+    };
+
+    const getBairro = (): string | undefined => {
+      if (posType !== 'Delivery') return undefined;
+      return selectedPOSAddress ? selectedPOSAddress.bairro : (selectedPOSCustomer ? selectedPOSCustomer.bairro : undefined);
+    };
+
+    const getCity = (): string => {
+      if (posType !== 'Delivery') return 'Lages';
+      return selectedPOSAddress ? selectedPOSAddress.city : (selectedPOSCustomer ? selectedPOSCustomer.city || 'Lages' : 'Lages');
+    };
+
     const newOrder: Order = {
       id: `ord-pos-${Date.now()}`,
       tenantId: currentTenantId,
@@ -664,9 +898,9 @@ export default function SaaSOrdersPanel({
       type: posType,
       customerName: custName,
       customerPhone: custPhone,
-      customerAddress: posType === 'Delivery' && selectedPOSCustomer ? selectedPOSCustomer.address : undefined,
-      customerBairro: posType === 'Delivery' && selectedPOSCustomer ? selectedPOSCustomer.bairro : undefined,
-      customerCity: posType === 'Delivery' && selectedPOSCustomer ? selectedPOSCustomer.city : 'Lages',
+      customerAddress: getFormattedAddress(),
+      customerBairro: getBairro(),
+      customerCity: getCity(),
       items: posCart,
       deliveryFee: posDeliveryFee,
       discount: posDiscount,
@@ -720,6 +954,8 @@ export default function SaaSOrdersPanel({
     // Reset fields
     setPosCart([]);
     setSelectedPOSCustomer(null);
+    setSelectedPOSAddress(null);
+    setIsAddingPOSAddress(false);
     setPosDiscount(0);
     setPosNotes('');
     setIsPOSActive(false);
@@ -1017,6 +1253,309 @@ export default function SaaSOrdersPanel({
               </div>
             </div>
 
+            {selectedPOSCustomer && (
+              <div className="bg-amber-50/40 border border-amber-200 p-5 rounded-2xl space-y-4 animate-fadeIn">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b border-amber-200/60 pb-3">
+                  <div>
+                    <h5 className="font-display font-black text-stone-900 text-xs uppercase tracking-wide flex items-center gap-2">
+                      <span className="text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded text-[9px] uppercase font-bold">✓ Selecionado</span>
+                      <span>{selectedPOSCustomer.name}</span>
+                    </h5>
+                    <p className="text-xs text-stone-600 font-mono font-bold mt-1">📞 {selectedPOSCustomer.phone}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedPOSCustomer(null);
+                      setSelectedPOSAddress(null);
+                    }}
+                    className="px-2.5 py-1 bg-stone-150 hover:bg-stone-200 text-stone-600 rounded-lg text-[10px] font-bold cursor-pointer"
+                  >
+                    ❌ Desmarcar Cliente
+                  </button>
+                </div>
+
+                {posType === 'Delivery' && (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                      <h6 className="font-bold text-stone-800 text-xs flex items-center gap-1.5">
+                        <span>📍</span>
+                        <span>Selecione o Endereço de Entrega:</span>
+                      </h6>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsAddingPOSAddress(true);
+                          setPosNewAddrName('');
+                          setPosNewAddrCep('');
+                          setPosNewAddrStreet('');
+                          setPosNewAddrNumber('');
+                          setPosNewAddrComplement('');
+                          setPosNewAddrBairro('');
+                          setPosNewAddrCity('Lages');
+                          setPosNewAddrReference('');
+                          setPosNewAddrDeliveryFee('');
+                        }}
+                        className="px-2.5 py-1 bg-orange-600 hover:bg-orange-500 text-white rounded-lg text-[10px] font-bold flex items-center gap-1 cursor-pointer"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>➕ Novo Endereço</span>
+                      </button>
+                    </div>
+
+                    {/* Inline New Address Form */}
+                    {isAddingPOSAddress && (
+                      <div className="p-4 bg-white border border-amber-200 rounded-xl space-y-3 shadow-xs animate-fadeIn">
+                        <h6 className="font-black text-stone-800 text-[11px] uppercase tracking-wide">
+                          🏠 Adicionar Novo Endereço para {selectedPOSCustomer.name}
+                        </h6>
+                        <div className="grid grid-cols-1 sm:grid-cols-6 gap-2 text-xs">
+                          <div className="sm:col-span-2">
+                            <label className="block text-[9px] text-stone-500 font-bold uppercase mb-0.5">Identificação (Ex: Casa, Trabalho) *</label>
+                            <input
+                              type="text"
+                              required
+                              placeholder="Ex: Casa, Trabalho"
+                              value={posNewAddrName}
+                              onChange={(e) => setPosNewAddrName(e.target.value)}
+                              className="w-full bg-stone-50 border border-stone-200 rounded px-2.5 py-1.5 text-stone-900 focus:outline-none focus:border-orange-500 font-bold"
+                            />
+                          </div>
+                          <div className="sm:col-span-2">
+                            <label className="block text-[9px] text-stone-500 font-bold uppercase mb-0.5">CEP</label>
+                            <input
+                              type="text"
+                              placeholder="Ex: 88501-000"
+                              value={posNewAddrCep}
+                              onChange={(e) => setPosNewAddrCep(e.target.value)}
+                              className="w-full bg-stone-50 border border-stone-200 rounded px-2.5 py-1.5 text-stone-900 focus:outline-none"
+                            />
+                          </div>
+                          <div className="sm:col-span-2">
+                            <label className="block text-[9px] text-stone-500 font-bold uppercase mb-0.5">Taxa de Entrega (R$)</label>
+                            <input
+                              type="number"
+                              step="0.01"
+                              placeholder="Padrão"
+                              value={posNewAddrDeliveryFee}
+                              onChange={(e) => setPosNewAddrDeliveryFee(e.target.value !== '' ? Number(e.target.value) : '')}
+                              className="w-full bg-stone-50 border border-stone-200 rounded px-2.5 py-1.5 text-stone-900 focus:outline-none"
+                            />
+                          </div>
+                          <div className="sm:col-span-4">
+                            <label className="block text-[9px] text-stone-500 font-bold uppercase mb-0.5">Rua / Logradouro *</label>
+                            <input
+                              type="text"
+                              required
+                              placeholder="Ex: Av. Brasil"
+                              value={posNewAddrStreet}
+                              onChange={(e) => setPosNewAddrStreet(e.target.value)}
+                              className="w-full bg-stone-50 border border-stone-200 rounded px-2.5 py-1.5 text-stone-900 focus:outline-none font-medium"
+                            />
+                          </div>
+                          <div className="sm:col-span-2">
+                            <label className="block text-[9px] text-stone-500 font-bold uppercase mb-0.5">Número *</label>
+                            <input
+                              type="text"
+                              required
+                              placeholder="Ex: 123"
+                              value={posNewAddrNumber}
+                              onChange={(e) => setPosNewAddrNumber(e.target.value)}
+                              className="w-full bg-stone-50 border border-stone-200 rounded px-2.5 py-1.5 text-stone-900 focus:outline-none text-center"
+                            />
+                          </div>
+                          <div className="sm:col-span-2">
+                            <label className="block text-[9px] text-stone-500 font-bold uppercase mb-0.5">Complemento</label>
+                            <input
+                              type="text"
+                              placeholder="Ex: Apto 102"
+                              value={posNewAddrComplement}
+                              onChange={(e) => setPosNewAddrComplement(e.target.value)}
+                              className="w-full bg-stone-50 border border-stone-200 rounded px-2.5 py-1.5 text-stone-900 focus:outline-none"
+                            />
+                          </div>
+                          <div className="sm:col-span-2">
+                            <label className="block text-[9px] text-stone-500 font-bold uppercase mb-0.5">Bairro *</label>
+                            <select
+                              value={posNewAddrBairro}
+                              onChange={(e) => setPosNewAddrBairro(e.target.value)}
+                              className="w-full bg-stone-50 border border-stone-200 rounded px-2 py-1.5 text-stone-900 focus:outline-none font-bold text-xs"
+                            >
+                              <option value="">Escolha...</option>
+                              {bairros.map((b) => (
+                                <option key={b.id} value={b.name}>{b.name}</option>
+                              ))}
+                            </select>
+                          </div>
+                          <div className="sm:col-span-2">
+                            <label className="block text-[9px] text-stone-500 font-bold uppercase mb-0.5">Cidade *</label>
+                            <input
+                              type="text"
+                              required
+                              placeholder="Ex: Lages"
+                              value={posNewAddrCity}
+                              onChange={(e) => setPosNewAddrCity(e.target.value)}
+                              className="w-full bg-stone-50 border border-stone-200 rounded px-2.5 py-1.5 text-stone-900 focus:outline-none"
+                            />
+                          </div>
+                          <div className="sm:col-span-6">
+                            <label className="block text-[9px] text-stone-500 font-bold uppercase mb-0.5">Ponto de Referência</label>
+                            <input
+                              type="text"
+                              placeholder="Ex: Próximo ao mercado"
+                              value={posNewAddrReference}
+                              onChange={(e) => setPosNewAddrReference(e.target.value)}
+                              className="w-full bg-stone-50 border border-stone-200 rounded px-2.5 py-1.5 text-stone-900 focus:outline-none"
+                            />
+                          </div>
+                        </div>
+                        <div className="flex justify-end gap-1.5 pt-2 border-t border-stone-100">
+                          <button
+                            type="button"
+                            onClick={() => setIsAddingPOSAddress(false)}
+                            className="px-3 py-1.5 bg-stone-150 hover:bg-stone-200 text-stone-600 rounded text-[10px] font-bold cursor-pointer"
+                          >
+                            Cancelar
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (!posNewAddrName || !posNewAddrStreet || !posNewAddrNumber || !posNewAddrBairro) {
+                                alert('⚠️ Identificação, Rua, Número e Bairro são obrigatórios!');
+                                return;
+                              }
+                              const newAddressId = `addr-${Date.now()}`;
+                              const newAddr: CustomerAddress = {
+                                id: newAddressId,
+                                name: posNewAddrName.trim(),
+                                cep: posNewAddrCep.trim() || undefined,
+                                street: posNewAddrStreet.trim(),
+                                number: posNewAddrNumber.trim(),
+                                complement: posNewAddrComplement.trim() || undefined,
+                                bairro: posNewAddrBairro.trim(),
+                                city: posNewAddrCity.trim(),
+                                reference: posNewAddrReference.trim() || undefined,
+                                deliveryFee: posNewAddrDeliveryFee !== '' ? Number(posNewAddrDeliveryFee) : undefined
+                              };
+
+                              // Save directly to the customer addresses list
+                              const updatedCustomers = customers.map(c => {
+                                if (c.id === selectedPOSCustomer.id) {
+                                  const existingAddrs = c.addresses || [];
+                                  return {
+                                    ...c,
+                                    addresses: [...existingAddrs, newAddr]
+                                  };
+                                }
+                                return c;
+                              });
+
+                              saveCustomersToStorage(updatedCustomers);
+                              
+                              const syncedCust = updatedCustomers.find(c => c.id === selectedPOSCustomer.id);
+                              if (syncedCust) {
+                                setSelectedPOSCustomer(syncedCust);
+                                // Select this newly added address
+                                const matchedAddr = (syncedCust.addresses || []).find(a => a.id === newAddressId);
+                                if (matchedAddr) {
+                                  setSelectedPOSAddress(matchedAddr);
+                                  // Update delivery fee
+                                  if (matchedAddr.deliveryFee !== undefined) {
+                                    setPosDeliveryFee(matchedAddr.deliveryFee);
+                                  } else {
+                                    const match = bairros.find(b => b.name.toLowerCase() === matchedAddr.bairro.toLowerCase());
+                                    setPosDeliveryFee(match ? match.fee : 8.0);
+                                  }
+                                }
+                              }
+                              setIsAddingPOSAddress(false);
+                            }}
+                            className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-[10px] font-bold cursor-pointer"
+                          >
+                            Salvar Endereço
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Address Selection Cards */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {getCustomerAddresses(selectedPOSCustomer).map((addr) => {
+                        const isSelected = selectedPOSAddress && selectedPOSAddress.id === addr.id;
+                        return (
+                          <div
+                            key={addr.id}
+                            onClick={() => {
+                              setSelectedPOSAddress(addr);
+                              if (addr.deliveryFee !== undefined) {
+                                setPosDeliveryFee(addr.deliveryFee);
+                              } else {
+                                const match = bairros.find(b => b.name.toLowerCase() === addr.bairro.toLowerCase());
+                                setPosDeliveryFee(match ? match.fee : 8.0);
+                              }
+                            }}
+                            className={`p-3 rounded-xl border transition-all cursor-pointer flex items-start gap-2.5 relative ${
+                              isSelected
+                                ? 'bg-white border-orange-500 shadow-md ring-1 ring-orange-500/30'
+                                : 'bg-white/80 border-stone-200 hover:bg-white hover:border-stone-300'
+                            }`}
+                          >
+                            <input
+                              type="radio"
+                              name="pos_address_selection"
+                              checked={!!isSelected}
+                              readOnly
+                              className="mt-1 cursor-pointer accent-orange-600"
+                            />
+                            <div className="space-y-0.5 text-left flex-1">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="font-extrabold text-stone-900 text-[10px] uppercase">{addr.name}</span>
+                                <span className="text-[9px] text-stone-500 font-mono">
+                                  Fee: R$ {addr.deliveryFee !== undefined ? addr.deliveryFee.toFixed(2) : (bairros.find(b => b.name.toLowerCase() === addr.bairro.toLowerCase())?.fee || 8.0).toFixed(2)}
+                                </span>
+                              </div>
+                              <p className="text-stone-700 text-[10px] leading-tight font-semibold">
+                                {addr.street}, {addr.number} {addr.complement ? ` - ${addr.complement}` : ''}
+                              </p>
+                              <p className="text-stone-500 text-[9px] font-medium">
+                                {addr.bairro} • {addr.city}
+                              </p>
+                              {addr.reference && (
+                                <p className="text-orange-600 text-[9px] italic font-medium leading-none">Ref: {addr.reference}</p>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                      {getCustomerAddresses(selectedPOSCustomer).length === 0 && (
+                        <p className="text-amber-800 text-[11px] font-bold italic col-span-2">
+                          ⚠️ Este cliente não possui nenhum endereço cadastrado. Por favor, clique em "+ Novo Endereço" acima para cadastrar!
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Continue Button */}
+                <div className="pt-2 border-t border-amber-200/60 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (posType === 'Delivery' && !selectedPOSAddress) {
+                        alert('⚠️ Por favor, selecione ou adicione um endereço para entrega!');
+                        return;
+                      }
+                      setPosStep('items');
+                    }}
+                    className="px-5 py-2 bg-red-700 hover:bg-red-600 text-white rounded-xl font-black text-xs flex items-center gap-1.5 shadow-3xs cursor-pointer"
+                  >
+                    <span>Prosseguir para Escolha de Produtos</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            )}
+
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 pt-2">
               {/* Left Side: Search Existing Customer */}
               <div className="space-y-4 border-r border-stone-100 pr-0 xl:pr-6">
@@ -1052,6 +1591,7 @@ export default function SaaSOrdersPanel({
                 {/* Filtered customers list */}
                 <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
                   {customers
+                    .filter((c) => c.tenantId === currentTenantId)
                     .filter((c) => {
                       const query = posSearchCustomer.trim().toLowerCase();
                       if (!query) return true; // Show all by default to make selection super easy
@@ -1087,13 +1627,10 @@ export default function SaaSOrdersPanel({
                             <button
                               type="button"
                               onClick={() => {
-                                setSelectedPOSCustomer(c);
-                                // If Delivery, set dynamic delivery fee of their neighborhood
-                                if (posType === 'Delivery' && c.bairro) {
-                                  const match = bairros.find(b => b.name.toLowerCase() === c.bairro.toLowerCase());
-                                  setPosDeliveryFee(match ? match.fee : 8.0);
+                                selectPOSCustomerAndDefaultAddress(c, posType);
+                                if (posType !== 'Delivery') {
+                                  setPosStep('items'); // Proceed to products directly for counter/takeout
                                 }
-                                setPosStep('items'); // Proceed to products
                               }}
                               className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-black text-[11px] transition-all cursor-pointer shadow-3xs flex items-center gap-1"
                             >
@@ -1123,11 +1660,13 @@ export default function SaaSOrdersPanel({
                         </div>
                       );
                     })}
-                  {customers.filter((c) => {
-                    const query = posSearchCustomer.trim().toLowerCase();
-                    if (!query) return true;
-                    return c.name.toLowerCase().includes(query) || c.phone.replace(/\D/g, '').includes(query.replace(/\D/g, ''));
-                  }).length === 0 && (
+                  {customers
+                    .filter((c) => c.tenantId === currentTenantId)
+                    .filter((c) => {
+                      const query = posSearchCustomer.trim().toLowerCase();
+                      if (!query) return true;
+                      return c.name.toLowerCase().includes(query) || c.phone.replace(/\D/g, '').includes(query.replace(/\D/g, ''));
+                    }).length === 0 && (
                     <div className="text-center py-8 text-stone-400 italic leading-snug">
                       Nenhum cliente cadastrado com esse nome ou telefone.<br />
                       Cadastre o novo cliente no formulário ao lado!
@@ -1172,15 +1711,37 @@ export default function SaaSOrdersPanel({
                     </div>
                   </div>
 
-                  <div>
-                    <label className="block text-stone-600 font-bold mb-1 font-semibold">Endereço Completo (Rua, Número, Apto)</label>
-                    <input
-                      type="text"
-                      placeholder="Ex: Avenida Belizário Ramos, 1200 - Apto 101"
-                      value={newCustAddress}
-                      onChange={(e) => setNewCustAddress(e.target.value)}
-                      className="w-full bg-stone-50 border border-stone-200 rounded-lg px-3 py-2 text-stone-950 focus:outline-none focus:border-red-500 font-medium"
-                    />
+                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                    <div className="sm:col-span-2">
+                      <label className="block text-stone-600 font-bold mb-1 font-semibold">Rua / Logradouro *</label>
+                      <input
+                        type="text"
+                        placeholder="Ex: Avenida Belizário Ramos"
+                        value={newCustStreet}
+                        onChange={(e) => setNewCustStreet(e.target.value)}
+                        className="w-full bg-stone-50 border border-stone-200 rounded-lg px-3 py-2 text-stone-950 focus:outline-none focus:border-red-500 font-medium"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-stone-600 font-bold mb-1 font-semibold">Número *</label>
+                      <input
+                        type="text"
+                        placeholder="Ex: 1200"
+                        value={newCustNumber}
+                        onChange={(e) => setNewCustNumber(e.target.value)}
+                        className="w-full bg-stone-50 border border-stone-200 rounded-lg px-3 py-2 text-stone-950 focus:outline-none focus:border-red-500 font-medium text-center"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-stone-600 font-bold mb-1 font-semibold">Complemento</label>
+                      <input
+                        type="text"
+                        placeholder="Ex: Apto 101"
+                        value={newCustComplement}
+                        onChange={(e) => setNewCustComplement(e.target.value)}
+                        className="w-full bg-stone-50 border border-stone-200 rounded-lg px-3 py-2 text-stone-950 focus:outline-none focus:border-red-500 font-medium"
+                      />
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
@@ -1220,11 +1781,14 @@ export default function SaaSOrdersPanel({
                         alert("⚠️ Por favor, preencha o Nome e Telefone para cadastrar!");
                         return;
                       }
+                      const addr = newCustStreet.trim()
+                        ? `${newCustStreet.trim()}, ${newCustNumber.trim()}${newCustComplement.trim() ? ' - ' + newCustComplement.trim() : ''}`
+                        : '';
                       const success = handleRegisterCustomer({
                         tenantId: currentTenantId,
                         name: newCustName,
                         phone: newCustPhone,
-                        address: newCustAddress,
+                        address: addr || undefined,
                         bairro: newCustBairro,
                         city: newCustCity,
                         createdAt: new Date().toISOString(),
@@ -1232,7 +1796,9 @@ export default function SaaSOrdersPanel({
                       if (success) {
                         setNewCustName('');
                         setNewCustPhone('');
-                        setNewCustAddress('');
+                        setNewCustStreet('');
+                        setNewCustNumber('');
+                        setNewCustComplement('');
                         setNewCustBairro('');
                         setPosStep('items'); // Proceed to products
                       }
@@ -1318,7 +1884,7 @@ export default function SaaSOrdersPanel({
                       }`}
                     >
                       {cat === 'Combos' ? (
-                        <img src="/LOGO COMBOS.png" alt="Combo" className="w-5 h-5 object-contain" referrerPolicy="no-referrer" />
+                        <img src="/LOGO_COMBOS.png" alt="Combo" className="w-5 h-5 object-contain" referrerPolicy="no-referrer" />
                       ) : (
                         <span className="text-sm">
                           {cat === 'Pizzas' ? '🍕' : cat === 'Bebidas' ? '🥤' : '🥟'}
@@ -1841,12 +2407,17 @@ export default function SaaSOrdersPanel({
                       {/* Quick select icons for drinks */}
                       <div className="flex flex-wrap gap-1.5">
                         {products
-                          .filter(p => p.category === 'Bebida' && p.id.startsWith('p-1') && !p.name.toLowerCase().includes('coca'))
+                          .filter(p => p.category === 'Bebida' && p.id.startsWith('p-1'))
                           .map(d => (
                             <button
                               key={d.id}
                               type="button"
-                              onClick={() => setPosComboDrink(d)}
+                              onClick={() => {
+                                setPosComboDrink(d);
+                                if (!d.name.toLowerCase().includes('coca')) {
+                                  setPosComboCocaDiff('');
+                                }
+                              }}
                               className={`px-2.5 py-1.5 rounded-lg border text-[10px] font-black flex items-center gap-1.5 transition-all cursor-pointer ${
                                 posComboDrink?.id === d.id
                                   ? 'bg-red-50 text-red-700 border-red-400 shadow-3xs'
@@ -1863,13 +2434,18 @@ export default function SaaSOrdersPanel({
                         value={posComboDrink?.id || ''}
                         onChange={(e) => {
                           const p = products.find(prod => prod.id === e.target.value);
-                          if (p) setPosComboDrink(p);
+                          if (p) {
+                            setPosComboDrink(p);
+                            if (!p.name.toLowerCase().includes('coca')) {
+                              setPosComboCocaDiff('');
+                            }
+                          }
                         }}
                         className="w-full bg-white border border-stone-200 rounded px-1.5 py-1 text-[11px] font-bold text-stone-900 focus:outline-none"
                       >
                         <option value="">Selecione a bebida...</option>
                         {products
-                          .filter(p => p.category === 'Bebida' && p.id.startsWith('p-1') && !p.name.toLowerCase().includes('coca'))
+                          .filter(p => p.category === 'Bebida' && p.id.startsWith('p-1'))
                           .filter(p => p.name.toLowerCase().includes(comboSearchQueryDrink.trim().toLowerCase()))
                           .map(p => (
                             <option key={p.id} value={p.id}>{p.name}</option>
@@ -1886,6 +2462,25 @@ export default function SaaSOrdersPanel({
                           className="flex-1 bg-stone-50/50 border border-stone-200/80 rounded px-2 py-0.5 text-[10px] text-stone-600 font-medium focus:outline-none focus:border-red-400 placeholder:text-stone-400 h-6"
                         />
                       </div>
+
+                      {posComboDrink && posComboDrink.name.toLowerCase().includes('coca') && (
+                        <div className="bg-amber-50 border border-amber-200 p-3 rounded-lg space-y-2 mt-2 animate-fadeIn">
+                          <p className="text-[11px] font-black text-amber-900 flex items-center gap-1.5">
+                            <span>⚠️ Coca-Cola possui acréscimo. Informe o valor da diferença.</span>
+                          </p>
+                          <div className="flex items-center gap-2">
+                            <label className="text-[10px] text-stone-600 font-bold uppercase shrink-0">Valor da Diferença (R$):</label>
+                            <input
+                              type="number"
+                              step="0.01"
+                              placeholder="Ex: R$ 5,00"
+                              value={posComboCocaDiff}
+                              onChange={(e) => setPosComboCocaDiff(e.target.value !== '' ? Number(e.target.value) : '')}
+                              className="bg-white border border-stone-200 rounded px-2.5 py-1 text-xs text-stone-950 font-mono font-bold w-32 focus:outline-none focus:border-red-500"
+                            />
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -1935,6 +2530,16 @@ export default function SaaSOrdersPanel({
                           return;
                         }
 
+                        const isCoca = posComboDrink.name.toLowerCase().includes('coca');
+                        let cocaDiff = 0;
+                        if (isCoca) {
+                          if (posComboCocaDiff === '' || isNaN(Number(posComboCocaDiff)) || Number(posComboCocaDiff) < 0) {
+                            alert("⚠️ O refrigerante Coca-Cola possui acréscimo. Por favor, preencha o valor da diferença!");
+                            return;
+                          }
+                          cocaDiff = Number(posComboCocaDiff);
+                        }
+
                         const flavorsNames = mainFlavors.map(f => f.name).join(' / ');
                         const name = `${posComboProduct.name} (Pizzas: ${flavorsNames} • Broto Doce: ${posComboSweetFlavor.name} • Refri: ${posComboDrink.name})`;
 
@@ -1943,10 +2548,11 @@ export default function SaaSOrdersPanel({
                           productId: posComboProduct.id,
                           name,
                           quantity: 1,
-                          price: posComboPrice,
+                          price: posComboPrice + cocaDiff,
                           isCombo: true,
                           removedComboItems: [],
-                          addedExtraItems: []
+                          addedExtraItems: [],
+                          cocaDifference: cocaDiff > 0 ? cocaDiff : undefined
                         };
 
                         setPosCart([...posCart, newItem]);
@@ -1954,6 +2560,7 @@ export default function SaaSOrdersPanel({
                         setPosComboFlavors([]);
                         setPosComboSweetFlavor(null);
                         setPosComboDrink(null);
+                        setPosComboCocaDiff('');
 
                         // Clear queries
                         setComboSearchQuery1('');
@@ -2397,7 +3004,7 @@ export default function SaaSOrdersPanel({
             {filteredOrders.length === 0 ? (
               <div className="text-center py-12 text-slate-500 text-xs">
                 {activeFilter === 'Todos'
-                  ? 'Nenhum pedido ativo no momento para esta empresa. Use o Simulador de Pedidos ao lado para injetar novas vendas!'
+                  ? 'Nenhum pedido ativo no momento para esta empresa. Use o botão "+ Novo Pedido" para lançar um novo pedido!'
                   : `Nenhum pedido no estado "${activeFilter}" encontrado para esta empresa.`}
               </div>
             ) : (
@@ -2877,50 +3484,130 @@ export default function SaaSOrdersPanel({
 
       {/* -------------------- PRINT MEDIA HIDDEN CONTENT -------------------- */}
       {printOrder && createPortal(
-        <div className={`print-area-wrapper hidden print:block ${printPaperWidth === '58mm' ? 'print-width-58' : ''}`}>
-          <div style={{ textAlign: 'center', marginBottom: '8px' }}>
-            <h3 style={{ fontSize: '13px', fontWeight: 'bold', margin: '0 0 2px 0', textTransform: 'uppercase' }}>
+        <div className={`print-area-wrapper hidden print:block ${printPaperWidth === '58mm' ? 'print-width-58' : ''}`} style={{ fontFamily: "'JetBrains Mono', monospace", color: '#000', lineHeight: '1.45', boxSizing: 'border-box' }}>
+          <div style={{ textAlign: 'center', marginBottom: '10px' }}>
+            <h3 style={{ fontSize: '18px', fontWeight: 'bold', margin: '0 0 3px 0', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
               {currentTenantId === 'tenant-1' ? 'Resenha Pizzaria & Esfiharia' : 'Pizzaria Dona Carmem'}
             </h3>
-            <p style={{ margin: '0', fontSize: '9px' }}>Lages - SC • Fone: (49) 99988-7766</p>
-            <p style={{ margin: '0', fontSize: '9px' }}>---------------------------------</p>
-            <p style={{ fontWeight: 'bold', margin: '2px 0 0 0', fontSize: '11px' }}>
-              {printType === 'Cozinha' ? 'TICKET DE COZINHA (PRODUÇÃO)' : 'CUPOM DE PEDIDO (BALCÃO)'}
+            <p style={{ margin: '2px 0', fontSize: '11px', fontWeight: 'bold' }}>Lages - SC • Fone: (49) 99988-7766</p>
+            <p style={{ margin: '4px 0', fontSize: '11px' }}>---------------------------------------------</p>
+            <p style={{ fontWeight: 'black', margin: '4px 0', fontSize: '14px', textTransform: 'uppercase', background: '#000', color: '#fff', padding: '3px 0', textAlign: 'center' }}>
+              {printType === 'Cozinha' ? 'TICKET DE COZINHA' : 'CUPOM DE PEDIDO (NÃO FISCAL)'}
             </p>
-            <p style={{ margin: '0', fontSize: '9px' }}>---------------------------------</p>
+            <p style={{ margin: '4px 0', fontSize: '11px' }}>---------------------------------------------</p>
           </div>
 
-          <div style={{ marginBottom: '8px', fontSize: '10px' }}>
-            <p style={{ margin: '2px 0' }}><strong>Pedido:</strong> {printOrder.orderNumber}</p>
-            <p style={{ margin: '2px 0' }}><strong>Data/Hora:</strong> {new Date(printOrder.createdAt).toLocaleString('pt-BR')}</p>
-            <p style={{ margin: '2px 0' }}><strong>Serviço:</strong> {printOrder.type === 'Delivery' ? '🏍️ ENTREGA' : printOrder.type === 'Retirada' ? '🥡 RETIRADA' : '🏪 BALCÃO'}</p>
-            <p style={{ margin: '2px 0' }}><strong>Cliente:</strong> {printOrder.customerName}</p>
+          <div style={{ marginBottom: '12px', fontSize: '12px', lineHeight: '1.5' }}>
+            <p style={{ margin: '3px 0' }}><strong>CUPOM Nº:</strong> <span style={{ fontSize: '15px', fontWeight: 'bold' }}>{printOrder.orderNumber}</span></p>
+            <p style={{ margin: '3px 0' }}><strong>DATA/HORA:</strong> {new Date(printOrder.createdAt).toLocaleString('pt-BR')}</p>
+            <p style={{ margin: '3px 0' }}><strong>TIPO:</strong> <span style={{ fontSize: '14px', fontWeight: 'bold', textTransform: 'uppercase' }}>{printOrder.type === 'Delivery' ? '🏍️ DELIVERY / ENTREGA' : printOrder.type === 'Retirada' ? '🥡 RETIRADA' : '🏪 BALCÃO'}</span></p>
+            <p style={{ margin: '3px 0' }}><strong>CLIENTE:</strong> <span style={{ fontSize: '13px', fontWeight: 'bold' }}>{printOrder.customerName.toUpperCase()}</span></p>
             {printType === 'Completo' && (
               <>
-                <p style={{ margin: '2px 0' }}><strong>Telefone:</strong> {printOrder.customerPhone}</p>
+                <p style={{ margin: '3px 0' }}><strong>FONE:</strong> <span style={{ fontWeight: 'bold' }}>{printOrder.customerPhone}</span></p>
                 {printOrder.customerAddress && (
-                  <p style={{ margin: '2px 0' }}><strong>Endereço:</strong> {printOrder.customerAddress}, {printOrder.customerBairro || 'N/I'}, {printOrder.customerCity || 'Lages'}</p>
+                  <div style={{ margin: '6px 0', padding: '6px', border: '2px solid #000', borderRadius: '4px', background: '#f9f9f9' }}>
+                    <p style={{ margin: '0 0 2px 0', fontWeight: 'bold', fontSize: '12px', textTransform: 'uppercase', color: '#000' }}>📍 ENDEREÇO DE ENTREGA:</p>
+                    <p style={{ margin: '2px 0', fontSize: '13px', fontWeight: 'bold', textTransform: 'uppercase' }}>{printOrder.customerAddress}</p>
+                    <p style={{ margin: '2px 0', fontSize: '12px', fontWeight: 'bold', textTransform: 'uppercase' }}>BAIRRO: {printOrder.customerBairro || 'N/I'} • {printOrder.customerCity || 'LAGES'}</p>
+                  </div>
                 )}
-                <p style={{ margin: '2px 0' }}><strong>Pagam.:</strong> {printOrder.paymentMethod || 'Pix'}</p>
+                <p style={{ margin: '3px 0' }}><strong>FORMA PAGAM.:</strong> <span style={{ fontSize: '13px', fontWeight: 'bold', textTransform: 'uppercase' }}>{printOrder.paymentMethod || 'Pix'}</span></p>
               </>
             )}
           </div>
 
-          <p style={{ margin: '0', fontSize: '10px' }}>=================================</p>
-          <p style={{ fontWeight: 'bold', margin: '4px 0', textTransform: 'uppercase', fontSize: '11px', textAlign: 'center' }}>ITENS DO PEDIDO</p>
-          <p style={{ margin: '0', fontSize: '10px' }}>=================================</p>
+          <p style={{ margin: '4px 0', fontSize: '11px' }}>=============================================</p>
+          <p style={{ fontWeight: 'bold', margin: '6px 0', textTransform: 'uppercase', fontSize: '13px', textAlign: 'center', letterSpacing: '1px' }}>🛒 ITENS DO PEDIDO</p>
+          <p style={{ margin: '4px 0', fontSize: '11px' }}>=============================================</p>
 
-          <div style={{ margin: '6px 0' }}>
+          <div style={{ margin: '8px 0' }}>
             {printOrder.items.map((item) => {
+              const isCombo = item.isCombo || item.name.toLowerCase().includes('combo');
+              if (isCombo) {
+                const parsed = parseComboDetails(item.name);
+                const isCocaDrink = parsed.drink.toLowerCase().includes('coca');
+
+                const comboFractionLabel = parsed.flavors.length === 1 ? '1 SABOR' : `${parsed.flavors.length} SABORES`;
+                const comboFractionMultiplier = parsed.flavors.length === 1 ? '' : `1/${parsed.flavors.length}`;
+                const comboFlavorMarker = parsed.flavors.length === 1 ? '' : `${comboFractionMultiplier} `;
+
+                return (
+                  <div key={item.id} style={{ marginBottom: '18px', borderBottom: '2px dashed #000', paddingBottom: '12px', lineHeight: '1.5' }}>
+                    {/* Line 1: Quantity and Combo Name with Pizza Size */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '15px' }}>
+                      <span><strong>{item.quantity}x {parsed.comboTitle.toUpperCase()} - {parsed.pizzaSize.toUpperCase()}</strong></span>
+                      {printType === 'Completo' && (
+                        <span><strong>R$ {(item.price * item.quantity).toFixed(2)}</strong></span>
+                      )}
+                    </div>
+
+                    {/* Fraction descriptor */}
+                    <div style={{ fontSize: '12px', margin: '4px 0', color: '#000', fontWeight: 'bold' }}>
+                      <span>- {comboFractionLabel}</span>
+                    </div>
+
+                    {/* Flavors list */}
+                    {parsed.flavors.map((fl, idx) => {
+                      const ingredients = getIngredientsForFlavor(fl);
+                      return (
+                        <div key={idx} style={{ marginLeft: '8px', marginBottom: '5px' }}>
+                          <div style={{ fontWeight: 'bold', fontSize: '14px' }}>
+                            <strong>• {comboFlavorMarker}{fl.toUpperCase()}</strong>
+                          </div>
+                          {ingredients && (
+                            <div style={{ fontSize: '11px', color: '#333', fontStyle: 'italic', marginLeft: '12px', lineHeight: '1.2' }}>
+                              ({ingredients.toLowerCase()})
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+
+                    {/* Highlighted Brotinho doce */}
+                    <div style={{ fontWeight: 'bold', fontSize: '13px', marginLeft: '8px', marginTop: '6px', borderLeft: '4px solid #000', paddingLeft: '8px', background: '#f5f5f5', textTransform: 'uppercase' }}>
+                      <strong>🍓 BROTINHO: {parsed.sweetFlavor.toUpperCase()}</strong>
+                    </div>
+
+                    {/* Drink / Refrigerante */}
+                    {isCocaDrink ? (
+                      <div style={{ fontWeight: 'bold', fontSize: '13px', marginLeft: '8px', marginTop: '6px', borderLeft: '4px solid #000', paddingLeft: '8px', background: '#f5f5f5', textTransform: 'uppercase' }}>
+                        <strong>🥤 BEBIDA: {parsed.drink.toUpperCase()}</strong>
+                      </div>
+                    ) : (
+                      <div style={{ fontWeight: 'bold', fontSize: '13px', marginLeft: '8px', marginTop: '6px', textTransform: 'uppercase' }}>
+                        • BEBIDA: {parsed.drink.toUpperCase()}
+                      </div>
+                    )}
+
+                    {/* Surcharges / Extras */}
+                    {item.cocaDifference && item.cocaDifference > 0 && (
+                      <div style={{ fontWeight: 'bold', fontSize: '13px', marginLeft: '8px', marginTop: '4px', color: '#000' }}>
+                        <strong>• DIFERENÇA COCA-COLA: + R$ {item.cocaDifference.toFixed(2)}</strong>
+                      </div>
+                    )}
+
+                    {/* Item Notes */}
+                    {item.notes && (
+                      <div style={{ fontWeight: 'bold', fontSize: '13px', marginTop: '6px', borderLeft: '4px solid #000', paddingLeft: '8px', background: '#f5f5f5' }}>
+                        <strong>OBS: {item.notes.toUpperCase()}</strong>
+                      </div>
+                    )}
+                  </div>
+                );
+              }
+
               const isPizza = item.isPizza || item.name.toLowerCase().includes('pizza');
               if (isPizza) {
                 const flavors = getFlavorsFromItem(item);
                 const sizeText = getPizzaSizeText(item);
                 const fractionLabel = item.fraction === 1 ? '1 SABOR' : item.fraction === 2 ? '2 SABORES' : item.fraction === 3 ? '3 SABORES' : item.fraction === 4 ? '4 SABORES' : `${flavors.length || 1} SABOR(ES)`;
-                
+                const fractionMultiplier = item.fraction ? `1/${item.fraction}` : `1/${flavors.length || 1}`;
+                const flavorMarker = item.fraction === 1 ? '' : `${fractionMultiplier} `;
+
                 return (
-                  <div key={item.id} style={{ marginBottom: '14px', fontSize: '13px', borderBottom: '1px dashed #000', paddingBottom: '10px', lineHeight: '1.5' }}>
-                    {/* Line 1: 1x PIZZA GRANDE (40CM) in BOLD (NEGRITO) and LARGER */}
+                  <div key={item.id} style={{ marginBottom: '18px', borderBottom: '2px dashed #000', paddingBottom: '12px', lineHeight: '1.5' }}>
+                    {/* Line 1: Quantity and Item name */}
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '15px' }}>
                       <span><strong>{item.quantity}x {sizeText.toUpperCase()}</strong></span>
                       {printType === 'Completo' && (
@@ -2928,28 +3615,45 @@ export default function SaaSOrdersPanel({
                       )}
                     </div>
                     
-                    {/* Line 2: Quantos sabores */}
-                    <div style={{ fontSize: '12px', margin: '3px 0', color: '#000', fontWeight: 'bold' }}>
+                    {/* Fraction descriptor */}
+                    <div style={{ fontSize: '12px', margin: '4px 0', color: '#000', fontWeight: 'bold' }}>
                       <span>- {fractionLabel}</span>
                     </div>
                     
-                    {/* Lines 3-6: Sabores in BOLD (NEGRITO) and UPPERCASE */}
-                    {flavors.map((fl, idx) => (
-                      <div key={idx} style={{ fontWeight: 'bold', fontSize: '14px', marginLeft: '6px' }}>
-                        <strong>- SABOR {idx + 1}: {fl.toUpperCase()}</strong>
-                      </div>
-                    ))}
+                    {/* Flavors list */}
+                    {flavors.map((fl, idx) => {
+                      const ingredients = getIngredientsForFlavor(fl);
+                      return (
+                        <div key={idx} style={{ marginLeft: '8px', marginBottom: '5px' }}>
+                          <div style={{ fontWeight: 'bold', fontSize: '14px' }}>
+                            <strong>• {flavorMarker}{fl.toUpperCase()}</strong>
+                          </div>
+                          {ingredients && (
+                            <div style={{ fontSize: '11px', color: '#333', fontStyle: 'italic', marginLeft: '12px', lineHeight: '1.2' }}>
+                              ({ingredients.toLowerCase()})
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                     
-                    {/* Border if customized */}
+                    {/* Border info */}
                     {item.border && (
-                      <div style={{ fontWeight: 'bold', fontSize: '12px', marginLeft: '6px', marginTop: '3px' }}>
-                        <strong>- BORDA: {item.border.name.toUpperCase()}</strong>
+                      <div style={{ fontWeight: 'bold', fontSize: '13px', marginLeft: '8px', marginTop: '4px' }}>
+                        <strong>• BORDA: {item.border.name.toUpperCase()}</strong>
+                      </div>
+                    )}
+
+                    {/* Surcharges / Extras */}
+                    {item.cocaDifference && item.cocaDifference > 0 && (
+                      <div style={{ fontWeight: 'bold', fontSize: '13px', marginLeft: '8px', marginTop: '4px', color: '#000' }}>
+                        <strong>• DIFERENÇA COCA-COLA: + R$ {item.cocaDifference.toFixed(2)}</strong>
                       </div>
                     )}
                     
-                    {/* Line 7: OBS in BOLD (NEGRITO) and UPPERCASE */}
+                    {/* Item Notes */}
                     {item.notes && (
-                      <div style={{ fontWeight: 'bold', fontSize: '14px', marginTop: '5px', borderLeft: '4px solid #000', paddingLeft: '6px', background: '#f5f5f5' }}>
+                      <div style={{ fontWeight: 'bold', fontSize: '13px', marginTop: '6px', borderLeft: '4px solid #000', paddingLeft: '8px', background: '#f5f5f5' }}>
                         <strong>OBS: {item.notes.toUpperCase()}</strong>
                       </div>
                     )}
@@ -2957,18 +3661,25 @@ export default function SaaSOrdersPanel({
                 );
               } else {
                 return (
-                  <div key={item.id} style={{ marginBottom: '14px', fontSize: '13px', borderBottom: '1px dashed #000', paddingBottom: '10px', lineHeight: '1.5' }}>
-                    {/* Line 1: 1x COCA COLA 2L in BOLD (NEGRITO) and LARGER */}
+                  <div key={item.id} style={{ marginBottom: '18px', borderBottom: '2px dashed #000', paddingBottom: '12px', lineHeight: '1.5' }}>
+                    {/* Line 1: Quantity and Item name */}
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '15px' }}>
                       <span><strong>{item.quantity}x {item.name.toUpperCase()}</strong></span>
                       {printType === 'Completo' && (
                         <span><strong>R$ {(item.price * item.quantity).toFixed(2)}</strong></span>
                       )}
                     </div>
+
+                    {/* Surcharges / Extras */}
+                    {item.cocaDifference && item.cocaDifference > 0 && (
+                      <div style={{ fontWeight: 'bold', fontSize: '13px', marginLeft: '8px', marginTop: '4px', color: '#000' }}>
+                        <strong>• DIFERENÇA COCA-COLA: + R$ {item.cocaDifference.toFixed(2)}</strong>
+                      </div>
+                    )}
                     
-                    {/* OBS in BOLD (NEGRITO) and UPPERCASE */}
+                    {/* Item Notes */}
                     {item.notes && (
-                      <div style={{ fontWeight: 'bold', fontSize: '14px', marginTop: '5px', borderLeft: '4px solid #000', paddingLeft: '6px', background: '#f5f5f5' }}>
+                      <div style={{ fontWeight: 'bold', fontSize: '13px', marginTop: '6px', borderLeft: '4px solid #000', paddingLeft: '8px', background: '#f5f5f5' }}>
                         <strong>OBS: {item.notes.toUpperCase()}</strong>
                       </div>
                     )}
@@ -2978,47 +3689,47 @@ export default function SaaSOrdersPanel({
             })}
           </div>
 
-          <p style={{ margin: '0', fontSize: '10px' }}>=================================</p>
+          <p style={{ margin: '4px 0', fontSize: '11px' }}>=============================================</p>
 
           {printType === 'Completo' ? (
-            <div style={{ margin: '8px 0', fontSize: '11px', fontWeight: 'bold' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', fontWeight: 'normal' }}>
-                <span>Subtotal:</span>
+            <div style={{ margin: '10px 0', fontSize: '12px', fontWeight: 'bold', lineHeight: '1.6' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'normal' }}>
+                <span>Subtotal dos itens:</span>
                 <span>R$ {printOrder.items.reduce((sum, item) => sum + item.price * item.quantity, 0).toFixed(2)}</span>
               </div>
               {printOrder.deliveryFee > 0 && (
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', fontWeight: 'normal' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'normal' }}>
                   <span>Taxa de Entrega:</span>
                   <span>R$ {printOrder.deliveryFee.toFixed(2)}</span>
                 </div>
               )}
               {printOrder.discount > 0 && (
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', fontWeight: 'normal', color: 'red' }}>
-                  <span>Desconto:</span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'normal', color: 'red' }}>
+                  <span>Descontos:</span>
                   <span>- R$ {printOrder.discount.toFixed(2)}</span>
                 </div>
               )}
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', fontWeight: 'bold', borderTop: '2px solid #000', paddingTop: '6px', marginTop: '6px' }}>
-                <span><strong>TOTAL DO PEDIDO:</strong></span>
-                <span style={{ fontSize: '18px', fontWeight: '900' }}><strong>R$ {printOrder.total.toFixed(2)}</strong></span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '15px', fontWeight: 'bold', borderTop: '2px solid #000', paddingTop: '8px', marginTop: '8px' }}>
+                <span><strong>TOTAL GERAL:</strong></span>
+                <span style={{ fontSize: '20px', fontWeight: '900' }}><strong>R$ {printOrder.total.toFixed(2)}</strong></span>
               </div>
             </div>
           ) : (
-            <div style={{ marginTop: '8px', fontSize: '11px', textAlign: 'center' }}>
-              <p style={{ fontWeight: 'bold', margin: '2px 0' }}>🔥 IMPRESSÃO COZINHA (PRODUÇÃO) 🔥</p>
+            <div style={{ marginTop: '10px', fontSize: '12px', textAlign: 'center' }}>
+              <p style={{ fontWeight: 'bold', margin: '4px 0', textTransform: 'uppercase', background: '#000', color: '#fff', padding: '2px 0' }}>🔥 IMPRESSÃO COZINHA (PRODUÇÃO) 🔥</p>
             </div>
           )}
 
           {printOrder.notes && (
-            <div style={{ marginTop: '8px', border: '1.5px solid #000', padding: '6px', fontSize: '11px' }}>
-              <strong>Obs. Gerais do Pedido:</strong>
-              <p style={{ margin: '4px 0 0 0', fontWeight: 'bold', fontSize: '12px' }}>{printOrder.notes.toUpperCase()}</p>
+            <div style={{ marginTop: '10px', border: '2px solid #000', padding: '8px', fontSize: '12px', background: '#fdfdfd' }}>
+              <strong style={{ fontSize: '13px' }}>OBSERVAÇÕES GERAIS DO PEDIDO:</strong>
+              <p style={{ margin: '6px 0 0 0', fontWeight: 'bold', fontSize: '14px', lineHeight: '1.4' }}>{printOrder.notes.toUpperCase()}</p>
             </div>
           )}
 
-          <div style={{ textAlign: 'center', marginTop: '15px', fontSize: '8px' }}>
+          <div style={{ textAlign: 'center', marginTop: '15px', fontSize: '10px', fontWeight: 'bold' }}>
             <p style={{ margin: '0' }}>Obrigado pela preferência!</p>
-            <p style={{ margin: '2px 0 0 0', fontSize: '6px', color: '#666' }}>Resenha Sistemas de Gestão</p>
+            <p style={{ margin: '4px 0 0 0', fontSize: '8px', color: '#666', fontWeight: 'normal' }}>Resenha Sistemas de Gestão</p>
           </div>
         </div>,
         document.body
@@ -3253,6 +3964,80 @@ export default function SaaSOrdersPanel({
                 {/* Items mockup */}
                 <div className="space-y-4 mb-3 text-[11px]">
                   {printOrder.items.map((item) => {
+                    const isCombo = item.isCombo || item.name.toLowerCase().includes('combo');
+                    if (isCombo) {
+                      const parsed = parseComboDetails(item.name);
+                      const isCocaDrink = parsed.drink.toLowerCase().includes('coca');
+
+                      const comboFractionLabel = parsed.flavors.length === 1 ? '1 SABOR' : `${parsed.flavors.length} SABORES`;
+                      const comboFractionMultiplier = parsed.flavors.length === 1 ? '' : `1/${parsed.flavors.length}`;
+                      const comboFlavorMarker = parsed.flavors.length === 1 ? '' : `${comboFractionMultiplier} `;
+
+                      return (
+                        <div key={item.id} className="border-b border-dashed border-stone-200 pb-3 last:border-0 last:pb-0 leading-relaxed text-black">
+                          {/* Line 1: Quantity and Combo Name with Pizza Size */}
+                          <div className="flex justify-between font-extrabold text-[13.5px]">
+                            <span>{item.quantity}x {parsed.comboTitle.toUpperCase()} - {parsed.pizzaSize.toUpperCase()}</span>
+                            {printType === 'Completo' && (
+                              <span>R$ {(item.price * item.quantity).toFixed(2)}</span>
+                            )}
+                          </div>
+
+                          {/* Fraction descriptor */}
+                          <div className="text-[11px] text-black font-bold my-0.5">- {comboFractionLabel}</div>
+
+                          {/* Flavors list */}
+                          <div className="space-y-1.5 my-1 pl-1">
+                            {parsed.flavors.map((fl, idx) => {
+                              const ingredients = getIngredientsForFlavor(fl);
+                              return (
+                                <div key={idx} className="leading-tight">
+                                  <div className="font-extrabold text-[12.5px] text-black">
+                                    • {comboFlavorMarker}{fl.toUpperCase()}
+                                  </div>
+                                  {ingredients && (
+                                    <div className="text-[10px] text-stone-600 font-medium italic pl-3 leading-tight">
+                                      ({ingredients.toLowerCase()})
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+
+                          {/* Highlighted Brotinho doce */}
+                          <div className="bg-stone-100 border-l-2 border-black p-1.5 mt-1.5 text-[12px] font-extrabold text-black uppercase">
+                            🍓 BROTINHO: {parsed.sweetFlavor.toUpperCase()}
+                          </div>
+
+                          {/* Drink / Refrigerante */}
+                          {isCocaDrink ? (
+                            <div className="bg-stone-100 border-l-2 border-black p-1.5 mt-1 text-[12px] font-extrabold text-black uppercase">
+                              🥤 BEBIDA: {parsed.drink.toUpperCase()}
+                            </div>
+                          ) : (
+                            <div className="font-bold text-[11px] text-stone-700 mt-1 pl-1 uppercase">
+                              • BEBIDA: {parsed.drink.toUpperCase()}
+                            </div>
+                          )}
+
+                          {/* Surcharges / Extras */}
+                          {item.cocaDifference && item.cocaDifference > 0 && (
+                            <div className="font-extrabold text-[11px] text-stone-700 mt-1 pl-1">
+                              - DIFERENÇA COCA-COLA: + R$ {item.cocaDifference.toFixed(2)}
+                            </div>
+                          )}
+
+                          {/* Item Notes */}
+                          {item.notes && (
+                            <div className="bg-stone-50 border-l-2 border-black p-1.5 mt-1 text-[12px] font-extrabold text-black">
+                              OBS: {item.notes.toUpperCase()}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    }
+
                     const isPizza = item.isPizza || item.name.toLowerCase().includes('pizza');
                     if (isPizza) {
                       const flavors = getFlavorsFromItem(item);
@@ -3273,12 +4058,22 @@ export default function SaaSOrdersPanel({
                           <div className="text-[11px] text-black font-bold my-0.5">- {fractionLabel}</div>
                           
                           {/* Lines 3-6: Sabores in BOLD (NEGRITO) and UPPERCASE */}
-                          <div className="space-y-0.5 my-1 pl-1">
-                            {flavors.map((fl, idx) => (
-                              <div key={idx} className="font-extrabold text-[12.5px] text-black">
-                                - SABOR {idx + 1}: {fl.toUpperCase()}
-                              </div>
-                            ))}
+                          <div className="space-y-1.5 my-1 pl-1">
+                            {flavors.map((fl, idx) => {
+                              const ingredients = getIngredientsForFlavor(fl);
+                              return (
+                                <div key={idx} className="leading-tight">
+                                  <div className="font-extrabold text-[12.5px] text-black">
+                                    - SABOR {idx + 1}: {fl.toUpperCase()}
+                                  </div>
+                                  {ingredients && (
+                                    <div className="text-[10px] text-stone-600 font-medium italic pl-3 leading-tight">
+                                      ({ingredients.toLowerCase()})
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
                             {item.border && (
                               <div className="font-extrabold text-[11px] text-stone-700">
                                 - BORDA: {item.border.name.toUpperCase()}

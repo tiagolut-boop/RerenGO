@@ -10,7 +10,7 @@ export const tenants: Tenant[] = [
     id: 'tenant-1',
     name: 'Resenha Pizzas',
     slug: 'resenha-pizzas',
-    logo: '🍕',
+    logo: '/logo_do_sistema.png',
     type: 'pizzaria',
     deliveryFee: 8.00,
     phone: '(49) 99805-9293',

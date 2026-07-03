@@ -91,7 +91,7 @@ export default function ResengoMasterPanel({ tenants, onUpdateTenants, onLogout,
       id: `tenant-${Date.now()}`,
       name: newName,
       slug: newSlug || `pizzaria-${Date.now()}`,
-      logo: '🍕',
+      logo: '/logo_do_sistema.png',
       type: 'pizzaria',
       deliveryFee: 8.00,
       phone: newPhone,
@@ -169,7 +169,7 @@ export default function ResengoMasterPanel({ tenants, onUpdateTenants, onLogout,
         <div className="flex items-center gap-3">
           <div className="text-right hidden sm:block">
             <p className="text-[10px] text-stone-500 font-mono font-bold uppercase">Conectado como</p>
-            <p className="text-xs text-stone-200 font-bold">pizzariaresenhalages@gmail.com</p>
+            <p className="text-xs text-stone-200 font-bold">tiago.lut@gmail.com</p>
           </div>
           <button
             onClick={onLogout}

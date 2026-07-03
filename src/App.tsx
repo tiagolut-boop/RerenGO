@@ -19,6 +19,18 @@ import SaaSCustomers from './components/SaaSCustomers';
 import SaaSPizzeriaSettings from './components/SaaSPizzeriaSettings';
 import ResengoAuthPortal from './components/ResengoAuthPortal';
 import ResengoMasterPanel from './components/ResengoMasterPanel';
+import SaaSSupabasePanel from './components/SaaSSupabasePanel';
+
+// Supabase Utilities
+import {
+  getSupabaseConfig,
+  pullSupabaseToLocal,
+  supabaseUpsertOrder,
+  supabaseUpsertCustomer,
+  supabaseUpsertTenant,
+  supabaseUpsertTransaction,
+  supabaseDeleteCustomer
+} from './supabaseClient';
 
 // Lucide Icons
 import {
@@ -42,7 +54,8 @@ import {
   Users,
   ChevronRight,
   ChevronLeft,
-  LogOut
+  LogOut,
+  Database
 } from 'lucide-react';
 
 export default function App() {
@@ -72,6 +85,11 @@ export default function App() {
     setTenantsList(updated);
     localStorage.setItem('saas_tenants_list', JSON.stringify(updated));
     
+    // Sync all updated tenants to Supabase (new registrations are immediately uploaded here)
+    updated.forEach(t => {
+      supabaseUpsertTenant(t);
+    });
+    
     // Also sync current active tenant if its state changed in the master panel (e.g., got blocked or details changed)
     if (activeTenant && activeTenant.id !== 'master') {
       const currentInList = updated.find(t => t.id === activeTenant.id);
@@ -90,7 +108,43 @@ export default function App() {
     return localStorage.getItem('saas_is_master') === 'true';
   });
 
+  // Custom router state for real customer ordering link
+  const [isCustomerView, setIsCustomerView] = useState(() => {
+    const hash = window.location.hash;
+    return hash.startsWith('#pedido') || hash.startsWith('#cliente') || hash.startsWith('#pwa');
+  });
+
+  React.useEffect(() => {
+    const handleHashChange = () => {
+      const hash = window.location.hash;
+      setIsCustomerView(hash.startsWith('#pedido') || hash.startsWith('#cliente') || hash.startsWith('#pwa'));
+    };
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
+
   const [activeTenant, setActiveTenant] = useState<Tenant>(() => {
+    // Check if there is a tenant in the URL hash / search params!
+    const hash = window.location.hash;
+    const match = hash.match(/tenant=([^&?]+)/) || window.location.search.match(/tenant=([^&?]+)/);
+    if (match) {
+      const slug = match[1];
+      const savedListStr = localStorage.getItem('saas_tenants_list');
+      let list: Tenant[] = tenants;
+      if (savedListStr) {
+        try {
+          list = JSON.parse(savedListStr) as Tenant[];
+        } catch (e) {
+          console.error(e);
+        }
+      }
+      const found = list.find(t => t.slug === slug || t.id === slug);
+      if (found) {
+        localStorage.setItem('saas_active_tenant', JSON.stringify(found));
+        return found;
+      }
+    }
+
     const saved = localStorage.getItem('saas_active_tenant');
     if (saved) {
       try {
@@ -100,11 +154,11 @@ export default function App() {
         console.error(e);
       }
     }
-    return {
+    return tenants[0] || {
       id: 'tenant-1',
       name: 'Resenha Pizzas',
       slug: 'resenha-pizzas',
-      logo: '🍕',
+      logo: '/logo_do_sistema.png',
       type: 'pizzaria',
       deliveryFee: 8.00,
       phone: '(49) 99805-9293',
@@ -133,6 +187,9 @@ export default function App() {
     const updatedList = tenantsList.map(t => t.id === updated.id ? updated : t);
     setTenantsList(updatedList);
     localStorage.setItem('saas_tenants_list', JSON.stringify(updatedList));
+
+    // Sync with Supabase
+    supabaseUpsertTenant(updated);
   };
 
   const handleSaaSLogin = (tenant: Tenant, isMasterUser: boolean) => {
@@ -151,11 +208,113 @@ export default function App() {
     localStorage.setItem('saas_is_master', 'false');
   };
 
-  const [orders, setOrders] = useState<Order[]>(initialOrders);
-  const [transactions, setTransactions] = useState<FinancialTransaction[]>(initialTransactions);
-  const [activeTab, setActiveTab] = useState<'orders' | 'customers' | 'kds' | 'menu' | 'finance' | 'drivers' | 'pizzeria' | 'blueprint'>('orders');
+  const [orders, setOrders] = useState<Order[]>(() => {
+    const saved = localStorage.getItem('saas_orders');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    return initialOrders;
+  });
+
+  const ordersRef = React.useRef<Order[]>(orders);
+  React.useEffect(() => {
+    ordersRef.current = orders;
+  }, [orders]);
+  
+  // Custom setter for orders to capture and sync state diffs with Supabase
+  const handleUpdateOrders = (updated: Order[] | ((prev: Order[]) => Order[])) => {
+    setOrders(prev => {
+      const next = typeof updated === 'function' ? updated(prev) : updated;
+      
+      // Sync diff with Supabase
+      const prevMap = new Map(prev.map(o => [o.id, o]));
+      next.forEach(order => {
+        const prevOrder = prevMap.get(order.id);
+        if (!prevOrder || JSON.stringify(prevOrder) !== JSON.stringify(order)) {
+          supabaseUpsertOrder(order);
+        }
+      });
+      
+      return next;
+    });
+  };
+
+  const [transactions, setTransactions] = useState<FinancialTransaction[]>(() => {
+    const saved = localStorage.getItem('saas_transactions');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    return initialTransactions;
+  });
+
+  // Persist orders and transactions to localStorage reactively
+  React.useEffect(() => {
+    localStorage.setItem('saas_orders', JSON.stringify(orders));
+  }, [orders]);
+
+  React.useEffect(() => {
+    localStorage.setItem('saas_transactions', JSON.stringify(transactions));
+  }, [transactions]);
+
+  // Synchronize state across tabs of the same browser via storage event
+  React.useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'saas_orders' && e.newValue) {
+        try {
+          const updatedOrders: Order[] = JSON.parse(e.newValue);
+          if (!isCustomerView) {
+            const currentOrders = ordersRef.current;
+            const currentIds = new Set(currentOrders.map(o => o.id));
+            // Find orders in updatedOrders that are 'Confirmado' and not in our current state
+            const newConfirmados = updatedOrders.filter(o => !currentIds.has(o.id) && o.status === 'Confirmado');
+            
+            setOrders(updatedOrders);
+            
+            if (newConfirmados.length > 0) {
+              const newest = newConfirmados[0];
+              setActiveIncomingOrder(newest);
+              triggerNotification(
+                `🍕 Novo pedido recebido online: ${newest.orderNumber}!`,
+                `${newest.customerName} realizou um pedido de R$ ${newest.total.toFixed(2)}`
+              );
+            }
+          } else {
+            setOrders(updatedOrders);
+          }
+        } catch (err) {
+          console.error(err);
+        }
+      }
+      if (e.key === 'saas_customers' && e.newValue) {
+        try {
+          setCustomers(JSON.parse(e.newValue));
+        } catch (err) {
+          console.error(err);
+        }
+      }
+      if (e.key === 'saas_transactions' && e.newValue) {
+        try {
+          setTransactions(JSON.parse(e.newValue));
+        } catch (err) {
+          console.error(err);
+        }
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, [isCustomerView]);
+  const [activeTab, setActiveTab] = useState<'orders' | 'customers' | 'kds' | 'menu' | 'finance' | 'drivers' | 'pizzeria' | 'blueprint' | 'supabase'>('orders');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-  const [showSmartphone, setShowSmartphone] = useState(true);
+  const [showSmartphone, setShowSmartphone] = useState(false);
 
   // Lifted customers state shared with all tabs
   const [customers, setCustomers] = useState<Customer[]>(() => {
@@ -176,9 +335,40 @@ export default function App() {
     return list;
   });
 
-  const handleUpdateCustomers = (updated: Customer[]) => {
-    setCustomers(updated);
-    localStorage.setItem('saas_customers', JSON.stringify(updated));
+  const handleUpdateCustomers = (updated: Customer[] | ((prev: Customer[]) => Customer[])) => {
+    setCustomers(prev => {
+      const next = typeof updated === 'function' ? updated(prev) : updated;
+      localStorage.setItem('saas_customers', JSON.stringify(next));
+
+      // Sync diff with Supabase
+      const prevMap = new Map(prev.map(c => [c.id, c]));
+      next.forEach(customer => {
+        const prevCust = prevMap.get(customer.id);
+        if (!prevCust || JSON.stringify(prevCust) !== JSON.stringify(customer)) {
+          supabaseUpsertCustomer(customer);
+        }
+      });
+      // Handle deletions
+      prev.forEach(customer => {
+        if (!next.some(c => c.id === customer.id)) {
+          supabaseDeleteCustomer(customer.id);
+        }
+      });
+
+      return next;
+    });
+  };
+
+  const handleUpdateAllData = (data: {
+    tenants: Tenant[];
+    customers: Customer[];
+    orders: Order[];
+    transactions: FinancialTransaction[];
+  }) => {
+    setTenantsList(data.tenants);
+    setCustomers(data.customers);
+    setOrders(data.orders);
+    setTransactions(data.transactions);
   };
 
   // Shared state to allow starting a pre-filled POS order from the customer database
@@ -197,6 +387,7 @@ export default function App() {
 
   // Play custom synthesizer double-chime sound (extremely robust, 0 asset dependencies)
   const playNotificationSound = () => {
+    if (isCustomerView) return;
     try {
       const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
       if (!AudioContext) return;
@@ -239,6 +430,7 @@ export default function App() {
 
   // Main notification router
   const triggerNotification = (title: string, body: string) => {
+    if (isCustomerView) return;
     // 1. Always play clean audio chime
     playNotificationSound();
 
@@ -282,7 +474,7 @@ export default function App() {
 
   // Repeating audio chime alert every 4 seconds for new incoming online orders
   React.useEffect(() => {
-    if (!activeIncomingOrder) return;
+    if (!activeIncomingOrder || isCustomerView) return;
 
     // Play once immediately
     playNotificationSound();
@@ -292,7 +484,70 @@ export default function App() {
     }, 4000);
 
     return () => clearInterval(interval);
-  }, [activeIncomingOrder]);
+  }, [activeIncomingOrder, isCustomerView]);
+
+  // Auto-pull and periodic background polling from Supabase if enabled
+  React.useEffect(() => {
+    let active = true;
+
+    const syncData = () => {
+      const { isEnabled } = getSupabaseConfig();
+      if (!isEnabled) return;
+
+      pullSupabaseToLocal().then(result => {
+        if (!active) return;
+        if (result.success && result.tenants && result.customers && result.orders && result.transactions) {
+          // Check if there are new pending orders from Supabase that we don't have locally
+          const currentOrders = ordersRef.current;
+          const currentIds = new Set(currentOrders.map(o => o.id));
+          const newPendingOrders = result.orders!.filter(o => !currentIds.has(o.id) && o.status === 'Confirmado');
+          
+          setOrders(result.orders!);
+
+          if (newPendingOrders.length > 0 && !isCustomerView) {
+            // Trigger notification for the latest new pending order
+            const newest = newPendingOrders[0];
+            setActiveIncomingOrder(newest);
+            triggerNotification(
+              `🍕 Novo pedido recebido online: ${newest.orderNumber}!`,
+              `${newest.customerName} realizou um pedido de R$ ${newest.total.toFixed(2)}`
+            );
+          }
+
+          setTenantsList(result.tenants);
+          setCustomers(result.customers);
+          setTransactions(result.transactions);
+
+          // Auto-update active tenant on customer site if URL matches a tenant slug
+          const hash = window.location.hash;
+          const match = hash.match(/tenant=([^&?]+)/) || window.location.search.match(/tenant=([^&?]+)/);
+          if (match) {
+            const slug = match[1];
+            const found = result.tenants.find(t => t.slug === slug || t.id === slug);
+            if (found) {
+              setActiveTenant(found);
+              localStorage.setItem('saas_active_tenant', JSON.stringify(found));
+            }
+          }
+        }
+      }).catch(e => {
+        console.error('Falha na sincronização periódica do Supabase:', e);
+      });
+    };
+
+    // Run on startup
+    syncData();
+
+    // Set interval for periodic poll (every 5 seconds)
+    const interval = setInterval(() => {
+      syncData();
+    }, 5000);
+
+    return () => {
+      active = false;
+      clearInterval(interval);
+    };
+  }, [isCustomerView]);
 
   // Switch tenant
   const handleTenantChange = (slug: string) => {
@@ -305,14 +560,46 @@ export default function App() {
   // Add Order (from simulation storefront)
   const handleAddOrder = (newOrder: Order) => {
     setOrders([newOrder, ...orders]);
-    setActiveIncomingOrder(newOrder); // Keep alert persistent on screen until accepted
-    setShowNotification(`🍕 Novo pedido recebido: ${newOrder.orderNumber} por ${newOrder.customerName}!`);
+    supabaseUpsertOrder(newOrder);
     
-    // Trigger fully auditory and visual desktop alert
-    triggerNotification(
-      `🔔 Novo Pedido Recebido! (${newOrder.orderNumber})`,
-      `Cliente: ${newOrder.customerName} • Total: R$ ${newOrder.total.toFixed(2)}`
-    );
+    // Only trigger alerts, chimes, and notifications if this is the Dashboard (owner's screen)
+    if (!isCustomerView) {
+      setActiveIncomingOrder(newOrder); // Keep alert persistent on screen until accepted
+      setShowNotification(`🍕 Novo pedido recebido: ${newOrder.orderNumber} por ${newOrder.customerName}!`);
+      
+      // Trigger fully auditory and visual desktop alert
+      triggerNotification(
+        `🔔 Novo Pedido Recebido! (${newOrder.orderNumber})`,
+        `Cliente: ${newOrder.customerName} • Total: R$ ${newOrder.total.toFixed(2)}`
+      );
+    }
+  };
+
+  // Copy Customer Digital Menu Link
+  const handleCopyClientLink = () => {
+    const { url: sUrl, anonKey: sKey, isEnabled } = getSupabaseConfig();
+    let origin = window.location.origin;
+    if (origin.includes('ais-dev-')) {
+      origin = origin.replace('ais-dev-', 'ais-pre-');
+    }
+    let url = `${origin}${window.location.pathname}#pedido?tenant=${activeTenant.slug}`;
+    
+    const isDefault = sUrl === 'https://sfyouhzzwazqclhuoxvn.supabase.co' && 
+      (sKey === 'sb_publishable_v_WQCv_0gE7IXaylsFJbmQ_tQ2qjLEm' || sKey.startsWith('eyJhbGci'));
+    const isEnv = !!(import.meta as any).env.VITE_SUPABASE_URL && !!(import.meta as any).env.VITE_SUPABASE_ANON_KEY;
+
+    if (isEnabled && sUrl && sKey && !isDefault && !isEnv) {
+      url += `&s_url=${encodeURIComponent(sUrl)}&s_key=${encodeURIComponent(sKey)}`;
+    }
+
+    navigator.clipboard.writeText(url)
+      .then(() => {
+        alert(`Link do Cardápio Digital copiado!\n\n${url}\n\nEnvie este link para abrir o cardápio funcional diretamente no celular do cliente!`);
+      })
+      .catch((err) => {
+        console.error('Erro ao copiar link:', err);
+        alert(`Não foi possível copiar automaticamente. Use este link:\n${url}`);
+      });
   };
 
   // Log new financial transaction
@@ -334,6 +621,7 @@ export default function App() {
       orderId,
     };
     setTransactions([newTx, ...transactions]);
+    supabaseUpsertTransaction(newTx);
   };
 
   // Dashboard Stats Calculations for Active Tenant
@@ -352,6 +640,16 @@ export default function App() {
   const pedidosProducao = tenantOrders.filter((o) => ['Em Produção', 'No Forno'].includes(o.status)).length;
   const pedidosEntrega = tenantOrders.filter((o) => o.status === 'Saiu para Entrega').length;
   const pedidosConcluidos = tenantOrders.filter((o) => o.status === 'Entregue').length;
+
+  if (isCustomerView) {
+    return (
+      <SaaSCustomerSite
+        currentTenant={activeTenant}
+        onAddOrder={handleAddOrder}
+        fullscreenMode={true}
+      />
+    );
+  }
 
   if (!isLoggedIn) {
     return (
@@ -466,7 +764,29 @@ export default function App() {
           
           {/* Logo & Slogan */}
           <div className="flex items-center gap-3">
-            <img src="/LOGO.png" alt="ResenGO Logo" className="w-12 h-12 object-contain rounded-xl border border-stone-200/40 bg-orange-50 p-1 shadow-3xs shrink-0" referrerPolicy="no-referrer" />
+            {activeTenant.logo && (activeTenant.logo.startsWith('http') || activeTenant.logo.startsWith('/') || activeTenant.logo.includes('.')) ? (
+              <img
+                src={activeTenant.logo}
+                alt={activeTenant.name}
+                className="w-12 h-12 object-contain rounded-xl border border-stone-200/40 bg-orange-50 p-1 shadow-3xs shrink-0 animate-fade-in"
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none';
+                  const parent = e.currentTarget.parentElement;
+                  if (parent && !parent.querySelector('.logo-fallback')) {
+                    const img = document.createElement('img');
+                    img.src = '/logo_do_sistema.png';
+                    img.className = 'logo-fallback w-12 h-12 object-contain rounded-xl border border-stone-200/40 bg-orange-50 p-1 shadow-3xs shrink-0';
+                    parent.insertBefore(img, parent.firstChild);
+                  }
+                }}
+              />
+            ) : (
+              <img
+                src="/logo_do_sistema.png"
+                alt={activeTenant.name}
+                className="w-12 h-12 object-contain rounded-xl border border-stone-200/40 bg-orange-50 p-1 shadow-3xs shrink-0 animate-fade-in"
+              />
+            )}
             <div>
               <div className="flex items-center gap-1.5">
                 <h1 className="text-xl font-display font-black text-stone-900 tracking-tight">{activeTenant.name}</h1>
@@ -534,18 +854,14 @@ export default function App() {
               </div>
             </div>
 
-            {/* Toggle Smartphone Button */}
+            {/* Copy Digital Menu Link for Customers */}
             <button
-              onClick={() => setShowSmartphone(!showSmartphone)}
-              className={`px-3 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 border cursor-pointer ${
-                showSmartphone
-                  ? 'bg-orange-50 text-orange-700 border-orange-200/80 shadow-3xs'
-                  : 'bg-stone-50 text-stone-600 border-stone-200 hover:bg-stone-100'
-              }`}
-              title={showSmartphone ? 'Ocultar canal de vendas simulado para aumentar o sistema' : 'Mostrar canal de vendas simulado'}
+              onClick={handleCopyClientLink}
+              className="px-3 py-2 bg-orange-600 hover:bg-orange-500 text-white rounded-xl text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer shadow-3xs"
+              title="Copiar link do Cardápio Digital real para enviar aos clientes ou abrir no celular"
             >
-              <Smartphone className="w-4 h-4 text-orange-600" />
-              <span className="hidden sm:inline">{showSmartphone ? 'Ocultar Celular' : 'Mostrar Celular'}</span>
+              <Smartphone className="w-3.5 h-3.5 text-white animate-pulse" />
+              <span>Cardápio Digital (Copiar Link)</span>
             </button>
 
             {/* SaaS Logout Button */}
@@ -773,6 +1089,19 @@ export default function App() {
                   {!isSidebarCollapsed && <span className="truncate">Cadastro Pizzaria</span>}
                 </button>
 
+                <button
+                  onClick={() => setActiveTab('supabase')}
+                  className={`flex items-center ${isSidebarCollapsed ? 'justify-center p-0 h-11' : 'gap-3 px-3 py-2.5'} rounded-xl text-xs font-bold transition-all w-full text-left cursor-pointer ${
+                    activeTab === 'supabase'
+                      ? 'bg-orange-50 text-orange-700 border border-orange-200/60 shadow-3xs'
+                      : 'text-stone-600 hover:text-stone-900 hover:bg-stone-50 border border-transparent'
+                  }`}
+                  title="Banco Supabase"
+                >
+                  <Database className="w-4 h-4 shrink-0 text-orange-600" />
+                  {!isSidebarCollapsed && <span className="truncate">Banco Supabase</span>}
+                </button>
+
                 <div className="border-t border-stone-100 my-1.5"></div>
 
                 <button
@@ -797,7 +1126,7 @@ export default function App() {
               {activeTab === 'orders' && (
                 <SaaSOrdersPanel
                   orders={orders}
-                  onUpdateOrders={setOrders}
+                  onUpdateOrders={handleUpdateOrders}
                   currentTenantId={activeTenant.id}
                   customers={customers}
                   onUpdateCustomers={handleUpdateCustomers}
@@ -812,9 +1141,10 @@ export default function App() {
                   customers={customers}
                   orders={orders}
                   onUpdateCustomers={handleUpdateCustomers}
+                  currentTenantId={activeTenant.id}
                   onSelectCustomerForNewOrder={(cust) => {
-                    setPreSelectedCustomer(cust);
-                    setActiveTab('orders');
+                     setPreSelectedCustomer(cust);
+                     setActiveTab('orders');
                   }}
                 />
               )}
@@ -825,7 +1155,7 @@ export default function App() {
                   orders={orders}
                   drivers={drivers}
                   currentTenantId={activeTenant.id}
-                  onUpdateOrders={setOrders}
+                  onUpdateOrders={handleUpdateOrders}
                   onLogTransaction={handleLogTransaction}
                 />
               )}
@@ -840,7 +1170,10 @@ export default function App() {
                 <SaaSFinance
                   transactions={transactions}
                   currentTenantId={activeTenant.id}
-                  onAddTransaction={(tx) => setTransactions([tx, ...transactions])}
+                  onAddTransaction={(tx) => {
+                     setTransactions([tx, ...transactions]);
+                     supabaseUpsertTransaction(tx);
+                  }}
                 />
               )}
 
@@ -858,6 +1191,17 @@ export default function App() {
                 <SaaSPizzeriaSettings
                   activeTenant={activeTenant}
                   onUpdateTenant={handleUpdateTenant}
+                />
+              )}
+
+              {/* TAB: BANCO SUPABASE */}
+              {activeTab === 'supabase' && (
+                <SaaSSupabasePanel
+                  tenants={tenantsList}
+                  customers={customers}
+                  orders={orders}
+                  transactions={transactions}
+                  onUpdateAllData={handleUpdateAllData}
                 />
               )}
 
