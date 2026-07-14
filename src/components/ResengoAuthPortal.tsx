@@ -7,6 +7,8 @@ import {
   Check, 
   CheckCircle2, 
   ArrowRight, 
+  ArrowLeft,
+  Key,
   DollarSign, 
   TrendingUp, 
   Info, 
@@ -32,7 +34,17 @@ interface ResengoAuthPortalProps {
 }
 
 export default function ResengoAuthPortal({ tenants, onSetTenants, onLoginSuccess }: ResengoAuthPortalProps) {
-  const [activeTab, setActiveTab] = useState<'login' | 'register'>('login');
+  const [activeTab, setActiveTab] = useState<'login' | 'register' | 'recovery'>('login');
+  
+  // Recovery Form States
+  const [recoveryEmail, setRecoveryEmail] = useState('');
+  const [recoveryError, setRecoveryError] = useState('');
+  const [recoverySuccess, setRecoverySuccess] = useState(false);
+  const [recoveryStep, setRecoveryStep] = useState<'email' | 'reset'>('email');
+  const [resetTenantId, setResetTenantId] = useState<string>('');
+  const [newPassword, setNewPassword] = useState('');
+  const [newPasswordConfirm, setNewPasswordConfirm] = useState('');
+  const [showNewPassword, setShowNewPassword] = useState(false);
   
   // Login Form States
   const [loginEmail, setLoginEmail] = useState('');
@@ -116,6 +128,120 @@ export default function ResengoAuthPortal({ tenants, onSetTenants, onLoginSucces
     } else {
       setLoginError('❌ Usuário/E-mail não cadastrado no Resengo SaaS.');
     }
+  };
+
+  const handleRecoveryRequest = (e: React.FormEvent) => {
+    e.preventDefault();
+    setRecoveryError('');
+    setRecoverySuccess(false);
+
+    const emailClean = recoveryEmail.trim().toLowerCase();
+
+    // Check Master Admin
+    if (emailClean === 'tiago.lut@gmail.com') {
+      const emailBody = `Olá Tiago!
+      
+Você solicitou a recuperação de senha do seu e-mail de Master Admin do Resengo SaaS.
+
+Sua senha cadastrada é: Lutando7*pizzaria
+
+Caso queira alterá-la, edite diretamente o arquivo de configuração no código do projeto.
+
+Atenciosamente,
+Sistema de Segurança Resengo`;
+
+      setSimulatedEmail({
+        to: 'tiago.lut@gmail.com',
+        from: 'seguranca@resengo.com.br',
+        subject: '🔑 Recuperação de Senha - Master Admin',
+        body: emailBody
+      });
+      setRecoverySuccess(true);
+      return;
+    }
+
+    // Check default test account
+    if (emailClean === 'teste@teste.com') {
+      const emailBody = `Olá Teste!
+      
+Você solicitou a recuperação de senha para a conta de testes.
+
+Sua senha de acesso é: 123456
+
+Atenciosamente,
+Sistema de Segurança Resengo`;
+
+      setSimulatedEmail({
+        to: 'teste@teste.com',
+        from: 'seguranca@resengo.com.br',
+        subject: '🔑 Recuperação de Senha - Conta de Teste',
+        body: emailBody
+      });
+      setRecoverySuccess(true);
+      return;
+    }
+
+    // Check Regular Tenant
+    const found = tenants.find(t => t.email?.trim().toLowerCase() === emailClean);
+    if (found) {
+      setResetTenantId(found.id);
+      setRecoveryStep('reset');
+      
+      // We will also send a simulated email just to be helpful
+      const emailBody = `Olá ${found.name}!
+      
+Recebemos uma solicitação de alteração de senha para a sua conta no Resengo SaaS.
+
+Sua senha atual é: ${found.password}
+
+Você pode usar o painel de recuperação para definir uma nova senha agora mesmo!
+
+Atenciosamente,
+Sistema de Segurança Resengo`;
+
+      setSimulatedEmail({
+        to: found.email || '',
+        from: 'seguranca@resengo.com.br',
+        subject: `🔑 Solicitação de Nova Senha - ${found.name}`,
+        body: emailBody
+      });
+    } else {
+      setRecoveryError('❌ E-mail não encontrado no sistema.');
+    }
+  };
+
+  const handlePasswordReset = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newPassword !== newPasswordConfirm) {
+      alert('❌ As senhas não coincidem!');
+      return;
+    }
+    if (newPassword.length < 6) {
+      alert('❌ A senha deve conter pelo menos 6 caracteres!');
+      return;
+    }
+
+    // Update the tenant's password in tenants list
+    const updatedTenants = tenants.map(t => {
+      if (t.id === resetTenantId) {
+        return {
+          ...t,
+          password: newPassword
+        };
+      }
+      return t;
+    });
+
+    onSetTenants(updatedTenants);
+    
+    // Show success alert
+    alert('✅ Senha alterada com sucesso! Agora você pode fazer o login.');
+    setActiveTab('login');
+    setRecoveryEmail('');
+    setNewPassword('');
+    setNewPasswordConfirm('');
+    setRecoveryStep('email');
+    setSimulatedEmail(null);
   };
 
   const handleRegister = (e: React.FormEvent) => {
@@ -358,7 +484,7 @@ Equipe de Tecnologia Resengo`;
               </button>
             </div>
 
-            {activeTab === 'login' ? (
+            {activeTab === 'login' && (
               /* LOGIN COMPONENT */
               <form onSubmit={handleLogin} className="space-y-4">
                 <div className="space-y-1.5">
@@ -390,7 +516,22 @@ Equipe de Tecnologia Resengo`;
                   </div>
 
                   <div className="space-y-1">
-                    <label className="block font-bold text-stone-400 uppercase text-[9px] tracking-wider">Senha Secreta</label>
+                    <div className="flex justify-between items-center">
+                      <label className="block font-bold text-stone-400 uppercase text-[9px] tracking-wider">Senha Secreta</label>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setActiveTab('recovery');
+                          setRecoveryError('');
+                          setRecoverySuccess(false);
+                          setRecoveryStep('email');
+                          setRecoveryEmail('');
+                        }}
+                        className="text-[10px] text-stone-400 hover:text-red-400 font-bold transition-all cursor-pointer"
+                      >
+                        Esqueceu a senha?
+                      </button>
+                    </div>
                     <div className="relative">
                       <Lock className="absolute left-3 top-3.5 w-4 h-4 text-stone-500" />
                       <input
@@ -420,7 +561,9 @@ Equipe de Tecnologia Resengo`;
                   <ArrowRight className="w-4 h-4" />
                 </button>
               </form>
-            ) : (
+            )}
+
+            {activeTab === 'register' && (
               /* REGISTRATION COMPONENT */
               <form onSubmit={handleRegister} className="space-y-4 max-h-[500px] overflow-y-auto pr-1">
                 <div className="space-y-1">
@@ -652,6 +795,145 @@ Equipe de Tecnologia Resengo`;
                   Concluir Cadastro & Iniciar Teste Grátis
                 </button>
               </form>
+            )}
+
+            {activeTab === 'recovery' && (
+              /* RECOVERY COMPONENT */
+              <div className="space-y-4 animate-fade-in text-xs">
+                <div className="space-y-1.5">
+                  <h3 className="font-display font-black text-sm uppercase text-white tracking-wider">
+                    {recoveryStep === 'email' ? 'Recuperar Senha' : 'Redefinir Senha'}
+                  </h3>
+                  <p className="text-stone-400 text-[10px]">
+                    {recoveryStep === 'email' 
+                      ? 'Informe seu e-mail de acesso para recuperar sua senha.' 
+                      : 'Crie uma nova senha de acesso segura para a sua pizzaria.'}
+                  </p>
+                </div>
+
+                {recoveryError && (
+                  <div className="bg-red-950/60 border border-red-900/50 p-3 rounded-xl text-red-200 text-[11px] leading-relaxed flex items-start gap-2 animate-fade-in">
+                    <AlertTriangle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
+                    <span>{recoveryError}</span>
+                  </div>
+                )}
+
+                {recoverySuccess && (
+                  <div className="bg-emerald-950/60 border border-emerald-900/50 p-3 rounded-xl text-emerald-200 text-[11px] leading-relaxed flex items-start gap-2 animate-fade-in">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-bold">E-mail de recuperação enviado!</p>
+                      <p className="text-[10px] text-stone-300 mt-0.5">Um e-mail de simulação com sua senha atual foi disparado no painel.</p>
+                    </div>
+                  </div>
+                )}
+
+                {recoveryStep === 'email' ? (
+                  <form onSubmit={handleRecoveryRequest} className="space-y-4 text-xs">
+                    <div className="space-y-1">
+                      <label className="block font-bold text-stone-400 uppercase text-[9px] tracking-wider">E-mail Cadastrado</label>
+                      <div className="relative">
+                        <Mail className="absolute left-3 top-3.5 w-4 h-4 text-stone-500" />
+                        <input
+                          type="email"
+                          required
+                          value={recoveryEmail}
+                          onChange={(e) => setRecoveryEmail(e.target.value)}
+                          placeholder="nome@pizzaria.com.br"
+                          className="w-full bg-stone-900/80 border border-stone-800 focus:border-red-500 text-white placeholder-stone-600 rounded-xl py-3 pl-10 pr-4 font-semibold outline-none transition-all focus:ring-1 focus:ring-red-500"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex gap-3 pt-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setActiveTab('login');
+                          setRecoveryError('');
+                          setRecoverySuccess(false);
+                          setSimulatedEmail(null);
+                        }}
+                        className="flex-1 bg-stone-800 hover:bg-stone-750 text-stone-300 font-bold py-3 px-4 rounded-xl border border-stone-700 transition-all flex items-center justify-center gap-1.5 cursor-pointer uppercase tracking-wider text-[11px]"
+                      >
+                        <ArrowLeft className="w-4 h-4 text-stone-400" />
+                        <span>Voltar</span>
+                      </button>
+                      <button
+                        type="submit"
+                        className="flex-1 bg-red-700 hover:bg-red-600 text-white font-black py-3 px-4 rounded-xl shadow-md transition-all flex items-center justify-center gap-1.5 cursor-pointer uppercase tracking-wider text-[11px]"
+                      >
+                        <span>Enviar</span>
+                        <ArrowRight className="w-4 h-4 text-white" />
+                      </button>
+                    </div>
+                  </form>
+                ) : (
+                  <form onSubmit={handlePasswordReset} className="space-y-4 text-xs">
+                    <div className="space-y-3">
+                      <div className="space-y-1">
+                        <label className="block font-bold text-stone-400 uppercase text-[9px] tracking-wider">Nova Senha Secreta</label>
+                        <div className="relative">
+                          <Lock className="absolute left-3 top-3.5 w-4 h-4 text-stone-500" />
+                          <input
+                            type={showNewPassword ? 'text' : 'password'}
+                            required
+                            value={newPassword}
+                            onChange={(e) => setNewPassword(e.target.value)}
+                            placeholder="Min. 6 caracteres"
+                            className="w-full bg-stone-900/80 border border-stone-800 focus:border-red-500 text-white placeholder-stone-600 rounded-xl py-3 pl-10 pr-10 font-semibold outline-none transition-all focus:ring-1 focus:ring-red-500"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowNewPassword(!showNewPassword)}
+                            className="absolute right-3 top-3.5 text-stone-500 hover:text-stone-300"
+                          >
+                            {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="block font-bold text-stone-400 uppercase text-[9px] tracking-wider">Confirmar Nova Senha</label>
+                        <div className="relative">
+                          <Lock className="absolute left-3 top-3.5 w-4 h-4 text-stone-500" />
+                          <input
+                            type={showNewPassword ? 'text' : 'password'}
+                            required
+                            value={newPasswordConfirm}
+                            onChange={(e) => setNewPasswordConfirm(e.target.value)}
+                            placeholder="Digite novamente a nova senha"
+                            className="w-full bg-stone-900/80 border border-stone-800 focus:border-red-500 text-white placeholder-stone-600 rounded-xl py-3 pl-10 pr-10 font-semibold outline-none transition-all focus:ring-1 focus:ring-red-500"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-3 pt-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setRecoveryStep('email');
+                          setRecoveryError('');
+                          setRecoverySuccess(false);
+                          setSimulatedEmail(null);
+                        }}
+                        className="flex-1 bg-stone-800 hover:bg-stone-750 text-stone-300 font-bold py-3 px-4 rounded-xl border border-stone-700 transition-all flex items-center justify-center gap-1.5 cursor-pointer uppercase tracking-wider text-[11px]"
+                      >
+                        <ArrowLeft className="w-4 h-4 text-stone-400" />
+                        <span>Voltar</span>
+                      </button>
+                      <button
+                        type="submit"
+                        className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-black py-3 px-4 rounded-xl shadow-md transition-all flex items-center justify-center gap-1.5 cursor-pointer uppercase tracking-wider text-[11px]"
+                      >
+                        <Check className="w-4 h-4 text-white" />
+                        <span>Salvar Senha</span>
+                      </button>
+                    </div>
+                  </form>
+                )}
+              </div>
             )}
 
           </div>
