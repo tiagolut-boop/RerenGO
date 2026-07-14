@@ -561,6 +561,35 @@ export default function App() {
   const handleAddOrder = (newOrder: Order) => {
     setOrders([newOrder, ...orders]);
     supabaseUpsertOrder(newOrder);
+
+    // Registra ou atualiza o cliente no CRM (lista de clientes) para que fique salvo no local e no Supabase
+    if (newOrder.customerPhone) {
+      handleUpdateCustomers(prev => {
+        const phoneClean = newOrder.customerPhone.trim();
+        const existingIdx = prev.findIndex(
+          c => c.phone.trim() === phoneClean && c.tenantId === newOrder.tenantId
+        );
+        let updatedCustomers = [...prev];
+        
+        const customerData: Customer = {
+          id: existingIdx >= 0 ? prev[existingIdx].id : `cust-${Date.now()}`,
+          tenantId: newOrder.tenantId,
+          name: newOrder.customerName,
+          phone: newOrder.customerPhone,
+          address: newOrder.customerAddress || '',
+          bairro: newOrder.customerBairro || '',
+          city: newOrder.customerCity || '',
+          createdAt: existingIdx >= 0 ? prev[existingIdx].createdAt : newOrder.createdAt || new Date().toISOString()
+        };
+
+        if (existingIdx >= 0) {
+          updatedCustomers[existingIdx] = customerData;
+        } else {
+          updatedCustomers = [customerData, ...updatedCustomers];
+        }
+        return updatedCustomers;
+      });
+    }
     
     // Only trigger alerts, chimes, and notifications if this is the Dashboard (owner's screen)
     if (!isCustomerView) {

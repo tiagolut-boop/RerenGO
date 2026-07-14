@@ -100,21 +100,39 @@ export default function SaaSCustomerSite({ currentTenant, onAddOrder, fullscreen
   const [selectedBorder, setSelectedBorder] = useState<PizzaBorder | undefined>(pizzaBorders[0]);
 
   // Checkout inputs
-  const [custName, setCustName] = useState('Mariana Linhares');
-  const [custPhone, setCustPhone] = useState('(49) 98765-4321');
+  const [custName, setCustName] = useState(() => {
+    return localStorage.getItem('customer_stored_name') || (fullscreenMode ? '' : 'Mariana Linhares');
+  });
+  const [custPhone, setCustPhone] = useState(() => {
+    return localStorage.getItem('customer_stored_phone') || (fullscreenMode ? '' : '(49) 98765-4321');
+  });
   
   // Split Address fields
-  const [custRua, setCustRua] = useState('Avenida Marechal Floriano');
-  const [custNumero, setCustNumero] = useState('1250');
-  const [custComplemento, setCustComplemento] = useState('Ap 401 - Bloco B');
+  const [custRua, setCustRua] = useState(() => {
+    return localStorage.getItem('customer_stored_rua') || (fullscreenMode ? '' : 'Avenida Marechal Floriano');
+  });
+  const [custNumero, setCustNumero] = useState(() => {
+    return localStorage.getItem('customer_stored_numero') || (fullscreenMode ? '' : '1250');
+  });
+  const [custComplemento, setCustComplemento] = useState(() => {
+    return localStorage.getItem('customer_stored_complemento') || (fullscreenMode ? '' : 'Ap 401 - Bloco B');
+  });
 
   // Searchable Neighborhood (Bairro) Selector
-  const [custBairro, setCustBairro] = useState('Consolação');
+  const [custBairro, setCustBairro] = useState(() => {
+    return localStorage.getItem('customer_stored_bairro') || (fullscreenMode ? '' : 'Consolação');
+  });
   const [bairroSearch, setBairroSearch] = useState('');
   const [showBairroDropdown, setShowBairroDropdown] = useState(false);
-  const [selectedBairroFee, setSelectedBairroFee] = useState<number>(6.00);
+  const [selectedBairroFee, setSelectedBairroFee] = useState<number>(() => {
+    const savedFee = localStorage.getItem('customer_stored_bairro_fee');
+    if (savedFee !== null) return parseFloat(savedFee);
+    return fullscreenMode ? 0.00 : 6.00;
+  });
 
-  const [custCity, setCustCity] = useState('Lages');
+  const [custCity, setCustCity] = useState(() => {
+    return localStorage.getItem('customer_stored_city') || 'Lages';
+  });
   const [paymentMethod, setPaymentMethod] = useState<'Pix' | 'Cartão' | 'Dinheiro'>('Pix');
   const [changeForAmount, setChangeForAmount] = useState(''); // Troco para quanto
 
@@ -297,6 +315,17 @@ export default function SaaSCustomerSite({ currentTenant, onAddOrder, fullscreen
     };
 
     onAddOrder(newOrder);
+
+    // Save inputs to localStorage so they are remembered next time
+    localStorage.setItem('customer_stored_name', custName);
+    localStorage.setItem('customer_stored_phone', custPhone);
+    localStorage.setItem('customer_stored_rua', custRua);
+    localStorage.setItem('customer_stored_numero', custNumero);
+    localStorage.setItem('customer_stored_complemento', custComplemento);
+    localStorage.setItem('customer_stored_bairro', custBairro);
+    localStorage.setItem('customer_stored_bairro_fee', selectedBairroFee.toString());
+    localStorage.setItem('customer_stored_city', custCity);
+
     setCart([]);
     setChangeForAmount('');
     setSiteTab('success');
