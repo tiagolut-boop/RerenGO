@@ -32,15 +32,35 @@ export function getSupabaseConfig() {
 
   const localUrl = localStorage.getItem('saas_supabase_url') || defaultUrl;
   const localAnonKey = localStorage.getItem('saas_supabase_anon_key') || defaultAnonKey;
-  const isEnabled = localStorage.getItem('saas_supabase_enabled') === 'true' || 
-                    (!!envUrl && !!envAnonKey) || 
-                    (!!urlParam && !!keyParam) ||
-                    (localUrl === defaultUrl && (localAnonKey === defaultAnonKey || localAnonKey === 'sb_publishable_v_WQCv_0gE7IXaylsFJbmQ_tQ2qjLEm'));
+
+  // Let's determine the active URL & Anon Key
+  const activeUrl = envUrl || urlParam || localUrl;
+  const activeAnonKey = envAnonKey || keyParam || localAnonKey;
+
+  // Helper to check if a string is a valid HTTP/HTTPS URL
+  const isValidHttpUrl = (str: string) => {
+    if (!str) return false;
+    try {
+      const urlObj = new URL(str);
+      return urlObj.protocol === 'http:' || urlObj.protocol === 'https:';
+    } catch (_) {
+      return false;
+    }
+  };
+
+  const isUrlValid = isValidHttpUrl(activeUrl);
+
+  const isEnabled = isUrlValid && (
+    localStorage.getItem('saas_supabase_enabled') === 'true' || 
+    (!!envUrl && envUrl !== 'Secret value' && !!envAnonKey && envAnonKey !== 'Secret value') || 
+    (!!urlParam && !!keyParam) ||
+    (localUrl === defaultUrl && (localAnonKey === defaultAnonKey || localAnonKey === 'sb_publishable_v_WQCv_0gE7IXaylsFJbmQ_tQ2qjLEm'))
+  );
 
   return {
-    url: envUrl || urlParam || localUrl,
-    anonKey: envAnonKey || keyParam || localAnonKey,
-    isEnabled: isEnabled,
+    url: isUrlValid ? activeUrl : '',
+    anonKey: isUrlValid ? activeAnonKey : '',
+    isEnabled: !!isEnabled,
   };
 }
 
@@ -98,6 +118,7 @@ CREATE TABLE IF NOT EXISTS tenants (
   is_active BOOLEAN DEFAULT true,
   trial_days_left INTEGER DEFAULT 3,
   representative_name TEXT,
+  password TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -196,6 +217,7 @@ export function tenantToDb(t: Tenant) {
     delivery_fee: t.deliveryFee,
     phone: t.phone,
     email: t.email,
+    password: t.password,
     cnpj: t.cnpj,
     address: t.address,
     bairro: t.bairro,
@@ -222,6 +244,7 @@ export function dbToTenant(row: any): Tenant {
     deliveryFee: Number(row.delivery_fee) || 0,
     phone: row.phone || '',
     email: row.email,
+    password: row.password || '',
     cnpj: row.cnpj,
     address: row.address,
     bairro: row.bairro,

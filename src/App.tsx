@@ -63,22 +63,60 @@ export default function App() {
   // Global States
   const [tenantsList, setTenantsList] = useState<Tenant[]>(() => {
     const saved = localStorage.getItem('saas_tenants_list');
+    let loadedList: Tenant[] = [];
     if (saved) {
       try {
-        return JSON.parse(saved);
+        loadedList = JSON.parse(saved);
       } catch (e) {
         console.error(e);
       }
     }
-    return tenants.map(t => ({
-      ...t,
-      email: t.email || 'contato@resenhapizzas.com.br',
-      password: t.password || '123456',
-      isActive: t.isActive !== false,
-      plan: t.plan || 'basic',
-      trialDaysLeft: t.trialDaysLeft || 3,
-      representativeName: t.representativeName || 'Tiago Lutterbach'
-    }));
+    
+    if (!loadedList || loadedList.length === 0) {
+      loadedList = tenants.map(t => ({
+        ...t,
+        email: t.email || 'contato@resenhapizzas.com.br',
+        password: t.password || '123456',
+        isActive: t.isActive !== false,
+        plan: t.plan || 'basic',
+        trialDaysLeft: t.trialDaysLeft || 3,
+        representativeName: t.representativeName || 'Tiago Lutterbach'
+      }));
+    }
+
+    // Ensure our test account "teste@teste" / "teste@teste.com" exists in the list!
+    const hasTestAccount = loadedList.some(t => {
+      const email = t.email?.trim().toLowerCase();
+      return email === 'teste@teste' || email === 'teste@teste.com';
+    });
+
+    if (!hasTestAccount) {
+      const testTenant: Tenant = {
+        id: 'tenant-test-default',
+        name: 'Pizzaria de Teste',
+        slug: 'pizzaria-de-teste',
+        logo: '/logo_do_sistema.png',
+        type: 'pizzaria',
+        deliveryFee: 8.00,
+        phone: '(49) 99805-9293',
+        email: 'teste@teste',
+        password: '123456',
+        isActive: true,
+        plan: 'pro',
+        trialDaysLeft: 999,
+        representativeName: 'Parceiro de Teste',
+        address: 'Avenida Brasil, 1000',
+        bairro: 'Centro',
+        city: 'Lages',
+        state: 'SC',
+        cnpj: '12.345.678/0001-99',
+        corporateName: 'Pizzaria Teste Ltda'
+      };
+      loadedList.push(testTenant);
+      localStorage.setItem('saas_tenants_list', JSON.stringify(loadedList));
+    }
+
+    return loadedList;
   });
 
   const handleUpdateTenantsList = (updated: Tenant[]) => {

@@ -102,8 +102,11 @@ export default function ResengoAuthPortal({ tenants, onSetTenants, onLoginSucces
     }
 
     // Check Test Credentials
-    if (emailClean === 'teste@teste.com' && passwordClean === '123456') {
-      const defaultTenant = tenants.find(t => t.id === 'tenant-1') || tenants[0];
+    if ((emailClean === 'teste@teste.com' || emailClean === 'teste@teste') && passwordClean === '123456') {
+      const defaultTenant = tenants.find(t => {
+        const email = t.email?.trim().toLowerCase();
+        return email === 'teste@teste' || email === 'teste@teste.com' || t.id === 'tenant-test-default';
+      }) || tenants.find(t => t.id === 'tenant-1') || tenants[0];
       if (defaultTenant) {
         onLoginSuccess({
           ...defaultTenant,
@@ -161,7 +164,7 @@ Sistema de Segurança Resengo`;
     }
 
     // Check default test account
-    if (emailClean === 'teste@teste.com') {
+    if (emailClean === 'teste@teste.com' || emailClean === 'teste@teste') {
       const emailBody = `Olá Teste!
       
 Você solicitou a recuperação de senha para a conta de testes.
@@ -172,7 +175,7 @@ Atenciosamente,
 Sistema de Segurança Resengo`;
 
       setSimulatedEmail({
-        to: 'teste@teste.com',
+        to: emailClean,
         from: 'seguranca@resengo.com.br',
         subject: '🔑 Recuperação de Senha - Conta de Teste',
         body: emailBody
