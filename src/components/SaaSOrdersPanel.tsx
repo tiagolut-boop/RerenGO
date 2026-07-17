@@ -233,6 +233,26 @@ export default function SaaSOrdersPanel({
   bairros,
   onUpdateBairros
 }: SaaSOrdersPanelProps) {
+  // Dynamic Tenant Info calculated dynamically on each render to guarantee fresh information
+  let tenantName = currentTenantId === 'tenant-1' ? 'Resenha Pizzaria & Esfiharia' : 'Pizzaria Dona Carmem';
+  let tenantPhone = '(49) 99988-7766';
+  let tenantCity = 'Lages';
+  let tenantState = 'SC';
+  try {
+    const saved = localStorage.getItem('saas_active_tenant');
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (parsed) {
+        if (parsed.name) tenantName = parsed.name;
+        if (parsed.phone) tenantPhone = parsed.phone;
+        if (parsed.city) tenantCity = parsed.city;
+        if (parsed.state) tenantState = parsed.state;
+      }
+    }
+  } catch (e) {
+    console.error('Error loading active tenant for printing:', e);
+  }
+
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -379,12 +399,11 @@ export default function SaaSOrdersPanel({
             : getFlavorsFromItem(item).map(name => ({ name, isSpecial: false, ingredients: getIngredientsForFlavor(name) }));
 
           const flavorsText = flavorsArray.length > 0
-            ? `<div style="font-size: ${subItemFontSize}; color: #000; padding-left: 4px; margin: 4px 0;">
-                <strong style="text-transform: uppercase;">Sabores:</strong>
-                ${flavorsArray.map(f => `
-                  <div style="margin: 4px 0 6px 8px; line-height: 1.3;">
-                    • <span style="font-weight: bold;">${f.name.toUpperCase()}</span>${f.isSpecial ? ' <strong>(ESPECIAL)</strong>' : ''}
-                    ${f.ingredients ? `<div style="font-size: ${ingredientsFontSize}; color: #000; font-weight: bold; padding-left: 12px; line-height: 1.25; text-transform: uppercase;">(${f.ingredients.toUpperCase()})</div>` : ''}
+            ? `<div style="font-size: ${subItemFontSize}; color: #000; padding-left: 4px; margin: 6px 0 8px 0;">
+                ${flavorsArray.map((f, idx) => `
+                  <div style="margin: 4px 0 6px 0; line-height: 1.35;">
+                    <span style="font-weight: 900;">SABOR ${idx + 1}: *${f.name.toUpperCase()}*</span>${f.isSpecial ? ' <strong>(ESPECIAL)</strong>' : ''}
+                    ${f.ingredients ? `<div style="font-size: ${ingredientsFontSize}; color: #000; font-weight: bold; padding-left: 12px; line-height: 1.25; text-transform: uppercase;">${f.ingredients.toUpperCase()}</div>` : ''}
                   </div>
                 `).join('')}
                </div>`
@@ -404,15 +423,30 @@ export default function SaaSOrdersPanel({
             ? `<div style="font-size: ${noteFontSize}; font-weight: bold; margin-top: 8px; border: 3px double #000; padding: 6px; background: #fff; text-transform: uppercase; line-height: 1.3;">⚠️ ${highlightNotesText(item.notes)}</div>`
             : '';
 
+          const isPizza = item.isPizza || item.name.toLowerCase().includes('pizza');
+          if (isPizza) {
+            const sizeText = getPizzaSizeText(item).toUpperCase();
+            const fractionLabel = item.fraction === 1 ? '1 SABOR' : item.fraction === 2 ? '2 SABORES' : item.fraction === 3 ? '3 SABORES' : item.fraction === 4 ? '4 SABORES' : `${flavorsArray.length || 1} SABOR(ES)`;
+            
+            return `
+              <div style="border-bottom: 2px dashed #000; padding: 8px 0; margin-bottom: 8px;">
+                <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: ${itemTitleFontSize};">
+                  <span><strong>${item.quantity}x ${sizeText} - ${fractionLabel}</strong></span>
+                  ${type === 'Completo' ? `<span><strong>R$ ${(item.price * item.quantity).toFixed(2)}</strong></span>` : ''}
+                </div>
+                ${flavorsText}
+                ${borderText}
+                ${itemObsHtml}
+              </div>
+            `;
+          }
+
           return `
             <div style="border-bottom: 2px dashed #000; padding: 8px 0; margin-bottom: 8px;">
               <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: ${itemTitleFontSize};">
                 <span><strong>${item.quantity}x ${item.name.toUpperCase()}</strong></span>
                 ${type === 'Completo' ? `<span><strong>R$ ${(item.price * item.quantity).toFixed(2)}</strong></span>` : ''}
               </div>
-              ${flavorsText}
-              ${borderText}
-              ${comboDetailsHtml}
               ${itemObsHtml}
             </div>
           `;
@@ -497,13 +531,14 @@ export default function SaaSOrdersPanel({
               </style>
             </head>
             <body>
-              <h2>${currentTenantId === 'tenant-1' ? 'Resenha Pizzaria & Esfiharia' : 'Pizzaria Dona Carmem'}</h2>
+              <h2>${tenantName.toUpperCase()}</h2>
               <p class="text-center" style="font-size: ${baseFontSize}; font-weight: 900; text-transform: uppercase; margin-bottom: 6px; letter-spacing: 0.5px;">
                 ${type === 'Cozinha' ? '🍳 TICKET DE COZINHA (PRODUÇÃO) 🍳' : '💵 CUPOM DE PEDIDO (BALCÃO) 💵'}
               </p>
+              <p style="text-align: center; margin: 2px 0 6px 0; font-size: ${baseFontSize}; font-weight: bold;">${tenantCity} - ${tenantState} • Fone: ${tenantPhone}</p>
               <div class="divider"></div>
               <p><strong>CUPOM Nº:</strong> <span style="font-size: ${itemTitleFontSize}; font-weight: 900;">${orderToPrint.orderNumber}</span></p>
-              <p><strong>DATA/HORA:</strong> {new Date(orderToPrint.createdAt).toLocaleString('pt-BR')}</p>
+              <p><strong>DATA/HORA:</strong> ${new Date(orderToPrint.createdAt).toLocaleString('pt-BR')}</p>
               <p><strong>SERVIÇO:</strong> <span style="text-transform: uppercase;">${orderToPrint.type === 'Delivery' ? '🏍️ ENTREGA' : orderToPrint.type === 'Retirada' ? '🥡 RETIRADA' : '🏪 BALCÃO'}</span></p>
               <p><strong>CLIENTE:</strong> <span style="text-transform: uppercase;">${orderToPrint.customerName}</span></p>
               ${type === 'Completo' ? `
@@ -4163,9 +4198,9 @@ export default function SaaSOrdersPanel({
         <div className={`print-area-wrapper hidden print:block ${printPaperWidth === '58mm' ? 'print-width-58' : ''}`} style={{ fontFamily: "'JetBrains Mono', monospace", color: '#000', lineHeight: '1.45', boxSizing: 'border-box', fontWeight: 'bold' }}>
           <div style={{ textAlign: 'center', marginBottom: '12px' }}>
             <h3 style={{ fontSize: printPaperWidth === '58mm' ? '17px' : '20px', fontWeight: '900', margin: '0 0 4px 0', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-              {currentTenantId === 'tenant-1' ? 'Resenha Pizzaria & Esfiharia' : 'Pizzaria Dona Carmem'}
+              {tenantName.toUpperCase()}
             </h3>
-            <p style={{ margin: '3px 0', fontSize: printPaperWidth === '58mm' ? '12px' : '14px', fontWeight: 'bold' }}>Lages - SC • Fone: (49) 99988-7766</p>
+            <p style={{ margin: '3px 0', fontSize: printPaperWidth === '58mm' ? '12px' : '14px', fontWeight: 'bold' }}>{tenantCity} - {tenantState} • Fone: {tenantPhone}</p>
             <p style={{ margin: '4px 0', fontSize: printPaperWidth === '58mm' ? '12px' : '14px' }}>---------------------------------------------</p>
             <p style={{ fontWeight: '900', margin: '6px 0', fontSize: printPaperWidth === '58mm' ? '14px' : '16px', textTransform: 'uppercase', background: '#000', color: '#fff', padding: '4px 0', textAlign: 'center' }}>
               {printType === 'Cozinha' ? 'TICKET DE COZINHA' : 'CUPOM DE PEDIDO (NÃO FISCAL)'}
@@ -4286,43 +4321,39 @@ export default function SaaSOrdersPanel({
 
               const isPizza = item.isPizza || item.name.toLowerCase().includes('pizza');
               if (isPizza) {
-                const flavors = getFlavorsFromItem(item);
-                const sizeText = getPizzaSizeText(item);
-                const fractionLabel = item.fraction === 1 ? '1 SABOR' : item.fraction === 2 ? '2 SABORES' : item.fraction === 3 ? '3 SABORES' : item.fraction === 4 ? '4 SABORES' : `${flavors.length || 1} SABOR(ES)`;
-                const fractionMultiplier = item.fraction ? `1/${item.fraction}` : `1/${flavors.length || 1}`;
-                const flavorMarker = item.fraction === 1 ? '' : `${fractionMultiplier} `;
+                const sizeText = getPizzaSizeText(item).toUpperCase();
+                const flavorsArray = item.flavors && item.flavors.length > 0
+                  ? item.flavors.map(f => ({ name: f.name, isSpecial: f.isSpecial, ingredients: f.ingredients || getIngredientsForFlavor(f.name) }))
+                  : getFlavorsFromItem(item).map(name => ({ name, isSpecial: false, ingredients: getIngredientsForFlavor(name) }));
+                const fractionLabel = item.fraction === 1 ? '1 SABOR' : item.fraction === 2 ? '2 SABORES' : item.fraction === 3 ? '3 SABORES' : item.fraction === 4 ? '4 SABORES' : `${flavorsArray.length || 1} SABOR(ES)`;
 
                 return (
                   <div key={item.id} style={{ marginBottom: '22px', borderBottom: '3px dashed #000', paddingBottom: '14px', lineHeight: '1.5' }}>
                     {/* Line 1: Quantity and Item name */}
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: '900', fontSize: printPaperWidth === '58mm' ? '14px' : '17px' }}>
-                      <span><strong>{item.quantity}x {sizeText.toUpperCase()}</strong></span>
+                      <span><strong>{item.quantity}x {sizeText} - {fractionLabel}</strong></span>
                       {printType === 'Completo' && (
                         <span><strong>R$ {(item.price * item.quantity).toFixed(2)}</strong></span>
                       )}
                     </div>
                     
-                    {/* Fraction descriptor */}
-                    <div style={{ fontSize: printPaperWidth === '58mm' ? '12.5px' : '15px', margin: '6px 0', color: '#000', fontWeight: '900' }}>
-                      <span>- {fractionLabel}</span>
-                    </div>
-                    
                     {/* Flavors list */}
-                    {flavors.map((fl, idx) => {
-                      const ingredients = getIngredientsForFlavor(fl);
-                      return (
-                        <div key={idx} style={{ marginLeft: '10px', marginBottom: '6px' }}>
-                          <div style={{ fontWeight: '900', fontSize: printPaperWidth === '58mm' ? '13.5px' : '16px' }}>
-                            <strong>• {flavorMarker}{fl.toUpperCase()}</strong>
-                          </div>
-                          {ingredients && (
-                            <div style={{ fontSize: printPaperWidth === '58mm' ? '12px' : '14px', color: '#000', fontWeight: 'bold', marginLeft: '14px', lineHeight: '1.25', textTransform: 'uppercase' }}>
-                              ({ingredients.toUpperCase()})
+                    <div style={{ marginTop: '6px' }}>
+                      {flavorsArray.map((f, idx) => {
+                        return (
+                          <div key={idx} style={{ marginLeft: '10px', marginBottom: '8px' }}>
+                            <div style={{ fontWeight: '900', fontSize: printPaperWidth === '58mm' ? '13.5px' : '16px' }}>
+                              <strong>SABOR {idx + 1}: *{f.name.toUpperCase()}*</strong>{f.isSpecial && ' (ESPECIAL)'}
                             </div>
-                          )}
-                        </div>
-                      );
-                    })}
+                            {f.ingredients && (
+                              <div style={{ fontSize: printPaperWidth === '58mm' ? '12px' : '14px', color: '#000', fontWeight: 'bold', marginLeft: '14px', lineHeight: '1.25', textTransform: 'uppercase' }}>
+                                ({f.ingredients.toUpperCase()})
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
                     
                     {/* Border info */}
                     {item.border && (
