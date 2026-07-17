@@ -54,6 +54,37 @@ export default function SaaSCustomerSite({ currentTenant, onAddOrder, fullscreen
   // Promotions State
   const [promotions, setPromotions] = useState<Promotion[]>([]);
 
+  const [flavorsList, setFlavorsList] = useState<PizzaSapor[]>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('saas_pizza_flavors');
+        if (saved) {
+          return JSON.parse(saved).map((f: any) => {
+            const isSweet = f.isSweet !== undefined 
+              ? f.isSweet 
+              : (f.id.startsWith('f-res-') && parseInt(f.id.replace('f-res-', '')) >= 44);
+            return { ...f, isSweet };
+          });
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    return pizzaFlavors;
+  });
+
+  const [bordersList, setBordersList] = useState<PizzaBorder[]>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('saas_pizza_borders');
+        if (saved) return JSON.parse(saved);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    return pizzaBorders;
+  });
+
   useEffect(() => {
     // Load promotions from localStorage
     const saved = localStorage.getItem('saas_promotions');
@@ -82,6 +113,35 @@ export default function SaaSCustomerSite({ currentTenant, onAddOrder, fullscreen
           rulesText: 'Todas as Bordas Recheadas com 50% de Desconto'
         }
       ]);
+    }
+
+    // Load and sync pizza flavors
+    const savedFlavors = localStorage.getItem('saas_pizza_flavors');
+    if (savedFlavors) {
+      try {
+        setFlavorsList(JSON.parse(savedFlavors).map((f: any) => {
+          const isSweet = f.isSweet !== undefined 
+            ? f.isSweet 
+            : (f.id.startsWith('f-res-') && parseInt(f.id.replace('f-res-', '')) >= 44);
+          return { ...f, isSweet };
+        }));
+      } catch (e) {
+        console.error(e);
+      }
+    } else {
+      setFlavorsList(pizzaFlavors);
+    }
+
+    // Load and sync pizza borders
+    const savedBorders = localStorage.getItem('saas_pizza_borders');
+    if (savedBorders) {
+      try {
+        setBordersList(JSON.parse(savedBorders));
+      } catch (e) {
+        console.error(e);
+      }
+    } else {
+      setBordersList(pizzaBorders);
     }
   }, [siteTab]);
 
@@ -140,6 +200,10 @@ export default function SaaSCustomerSite({ currentTenant, onAddOrder, fullscreen
   const [showFreeBrotoModal, setShowFreeBrotoModal] = useState(false);
   const [freeBrotoSearch, setFreeBrotoSearch] = useState('');
   const [selectedFreeBrotoFlavor, setSelectedFreeBrotoFlavor] = useState<PizzaSapor>(pizzaFlavors[44]); // Default Brigadeiro
+
+  // Pizza flavors category expander and search query
+  const [expandedCategory, setExpandedCategory] = useState<'tradicionais' | 'especiais' | 'doces_tradicionais' | 'doces_especiais' | null>('tradicionais');
+  const [flavorSearchQuery, setFlavorSearchQuery] = useState('');
 
   // Filter products for active tenant
   const tenantProducts = products.filter(
@@ -512,7 +576,9 @@ export default function SaaSCustomerSite({ currentTenant, onAddOrder, fullscreen
 
               {/* Products list */}
               <div className="space-y-2.5">
-                {tenantProducts.map((p) => (
+                {tenantProducts
+                  .filter((p) => p.category !== 'Pizza')
+                  .map((p) => (
                   <div key={p.id} className="p-2.5 bg-stone-50/50 border border-stone-200/85 rounded-xl flex items-start justify-between gap-2 hover:border-stone-300 transition-all shadow-3xs">
                     <div className="space-y-0.5 flex-1">
                       <div className="flex items-center gap-1">
@@ -533,6 +599,130 @@ export default function SaaSCustomerSite({ currentTenant, onAddOrder, fullscreen
                   </div>
                 ))}
               </div>
+
+              {/* Nossos Sabores de Pizzas Section (Only for Pizzaria) */}
+              {currentTenant.type === 'pizzaria' && (
+                <div className="space-y-3 pt-2 border-t border-stone-200">
+                  <div className="flex flex-col gap-1.5 font-sans">
+                    <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider">Sabores das Pizzas</span>
+                    
+                    {/* Search Flavor Input */}
+                    <div className="relative">
+                      <input
+                        type="text"
+                        placeholder="🔍 Buscar sabor de pizza..."
+                        value={flavorSearchQuery}
+                        onChange={(e) => setFlavorSearchQuery(e.target.value)}
+                        className="w-full bg-stone-100 text-[10px] py-1.5 pl-7 pr-3 rounded-xl border border-stone-200 focus:outline-none focus:border-orange-500 font-medium"
+                      />
+                      <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-stone-400" />
+                    </div>
+                  </div>
+
+                  {flavorSearchQuery.trim() !== '' ? (
+                    /* Search results view */
+                    <div className="space-y-2">
+                      <p className="text-[9px] font-bold text-stone-400 uppercase font-mono">Resultados da Busca:</p>
+                      {flavorsList
+                        .filter(f => f.name.toLowerCase().includes(flavorSearchQuery.toLowerCase()) || f.ingredients.toLowerCase().includes(flavorSearchQuery.toLowerCase()))
+                        .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))
+                        .map((f, idx) => (
+                          <div key={f.id} className="p-3 bg-stone-50 border border-stone-200 rounded-xl flex flex-col gap-1.5 shadow-3xs">
+                            <div className="flex justify-between items-start">
+                              <p className="text-[11px] text-stone-850 leading-tight">
+                                <span className="font-mono font-bold text-stone-400 mr-1.5">{String(idx + 1).padStart(2, '0')}-</span>
+                                pizza <strong className="font-display font-black text-[12px] text-stone-950 uppercase">{f.name}</strong>
+                              </p>
+                              <span className="text-[8px] font-mono font-bold text-orange-700 bg-orange-50 border border-orange-200 px-1.5 py-0.2 rounded">
+                                {f.isSweet ? 'Doce' : 'Salgada'} {f.isSpecial ? '• Especial' : '• Trad.'}
+                              </span>
+                            </div>
+                            <p className="text-[10px] text-stone-500 font-medium leading-tight italic">{f.ingredients}</p>
+                            <div className="flex justify-between items-center mt-1 pt-1.5 border-t border-stone-150">
+                              <span className="text-[8px] text-stone-400 font-medium font-mono">
+                                {f.isSpecial ? `Adicional: +R$ ${f.additionalPrice.toFixed(2)}` : 'Preço Normal'}
+                              </span>
+                              <button
+                                onClick={() => {
+                                  setSelectedFlavors([f]);
+                                  setSiteTab('pizza');
+                                }}
+                                className="text-orange-600 hover:text-orange-700 text-[10px] font-bold flex items-center gap-0.5 cursor-pointer font-sans"
+                              >
+                                🍕 Escolher Sabor
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      {flavorsList.filter(f => f.name.toLowerCase().includes(flavorSearchQuery.toLowerCase()) || f.ingredients.toLowerCase().includes(flavorSearchQuery.toLowerCase())).length === 0 && (
+                        <p className="text-center text-[10px] text-stone-400 italic py-2">Nenhum sabor encontrado.</p>
+                      )}
+                    </div>
+                  ) : (
+                    /* Categorized accordions */
+                    <div className="space-y-2">
+                      {[
+                        { key: 'tradicionais' as const, label: 'Pizzas Sabores Tradicionais', items: flavorsList.filter(f => !f.isSweet && !f.isSpecial).sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')) },
+                        { key: 'especiais' as const, label: 'Sabores Especiais', items: flavorsList.filter(f => !f.isSweet && f.isSpecial).sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')) },
+                        { key: 'doces_tradicionais' as const, label: 'Pizzas Doces Tradicionais', items: flavorsList.filter(f => f.isSweet && !f.isSpecial).sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')) },
+                        { key: 'doces_especiais' as const, label: 'Pizzas Doces Especiais', items: flavorsList.filter(f => f.isSweet && f.isSpecial).sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')) }
+                      ].map((cat) => (
+                        <div key={cat.key} className="border border-stone-200 rounded-xl overflow-hidden shadow-3xs bg-white">
+                          <button
+                            onClick={() => setExpandedCategory(expandedCategory === cat.key ? null : cat.key)}
+                            className="w-full flex items-center justify-between p-3 bg-stone-50 hover:bg-stone-100 transition-all text-left"
+                          >
+                            <span className="text-[11px] font-black text-stone-850 uppercase font-display tracking-tight flex items-center gap-1.5 font-sans">
+                              {cat.key === 'tradicionais' ? '🍕' : cat.key === 'especiais' ? '⭐' : cat.key === 'doces_tradicionais' ? '🍫' : '🍓'}
+                              {cat.label}
+                              <span className="text-[9px] lowercase font-normal text-stone-400">({cat.items.length} sabores)</span>
+                            </span>
+                            <span className="text-stone-400 text-[10px] font-bold">
+                              {expandedCategory === cat.key ? '▼' : '▲'}
+                            </span>
+                          </button>
+                          
+                          {expandedCategory === cat.key && (
+                            <div className="p-2 space-y-2 bg-stone-50/30 max-h-[280px] overflow-y-auto border-t border-stone-150">
+                              {cat.items.map((f, idx) => (
+                                <div key={f.id} className="p-2.5 bg-white border border-stone-200/80 rounded-lg hover:border-stone-300 transition-all flex flex-col gap-1">
+                                  <div className="flex justify-between items-start">
+                                    <p className="text-[11px] text-stone-850 leading-tight">
+                                      <span className="font-mono font-bold text-stone-400 mr-1">{String(idx + 1).padStart(2, '0')}-</span>
+                                      pizza <strong className="font-display font-black text-[11px] text-stone-900 uppercase">{f.name}</strong>
+                                    </p>
+                                    {f.isSpecial && (
+                                      <span className="text-[8px] font-mono font-bold text-orange-700 bg-orange-50 border border-orange-200 px-1 py-0.2 rounded shrink-0">
+                                        +R$ {f.additionalPrice.toFixed(2)}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <p className="text-[9px] text-stone-500 font-medium leading-tight italic">{f.ingredients}</p>
+                                  
+                                  <div className="flex justify-between items-center mt-1 pt-1 border-t border-stone-100">
+                                    <span className="text-[8px] text-stone-400 font-medium font-mono">
+                                      {f.isSpecial ? `Adicional (+ R$ ${f.additionalPrice.toFixed(2)})` : 'Preço Base (Sem Adicional)'}
+                                    </span>
+                                    <button
+                                      onClick={() => {
+                                        setSelectedFlavors([f]);
+                                        setSiteTab('pizza');
+                                      }}
+                                      className="text-orange-600 hover:text-orange-700 text-[9px] font-extrabold flex items-center gap-0.5 cursor-pointer"
+                                    >
+                                      🍕 Escolher
+                                    </button>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
@@ -608,14 +798,14 @@ export default function SaaSCustomerSite({ currentTenant, onAddOrder, fullscreen
                     <select
                       value={selectedFlavors[i]?.id || ''}
                       onChange={(e) => {
-                        const f = pizzaFlavors.find((x) => x.id === e.target.value);
+                        const f = flavorsList.find((x) => x.id === e.target.value);
                         const copy = [...selectedFlavors];
                         if (f) copy[i] = f;
                         setSelectedFlavors(copy);
                       }}
                       className="bg-white text-[10px] border border-stone-200 rounded-lg px-2 py-1 text-stone-700 font-medium focus:outline-none focus:border-orange-500"
                     >
-                      {pizzaFlavors.map((f) => {
+                      {flavorsList.map((f) => {
                         const maxFlavors = selectedSize ? selectedSize.maxFlavors : 4;
                         const multiplier = maxFlavors / fraction;
                         const realAdd = f.additionalPrice * multiplier;
@@ -639,13 +829,13 @@ export default function SaaSCustomerSite({ currentTenant, onAddOrder, fullscreen
                 <select
                   value={selectedBorder?.id || ''}
                   onChange={(e) => {
-                    const b = pizzaBorders.find((x) => x.id === e.target.value);
+                    const b = bordersList.find((x) => x.id === e.target.value);
                     setSelectedBorder(b);
                   }}
                   className="w-full bg-white text-[10px] border border-stone-200 rounded-lg px-2.5 py-1.5 text-stone-700 font-medium focus:outline-none"
                 >
                   <option value="">Sem Borda (+ R$ 0,00)</option>
-                  {pizzaBorders.map((b) => {
+                  {bordersList.map((b) => {
                     const price = isWednesdayPromoActive ? b.price / 2 : b.price;
                     return (
                       <option key={b.id} value={b.id}>
@@ -962,12 +1152,12 @@ export default function SaaSCustomerSite({ currentTenant, onAddOrder, fullscreen
               <select
                 value={selectedFreeBrotoFlavor.id}
                 onChange={(e) => {
-                  const f = pizzaFlavors.find(x => x.id === e.target.value);
+                  const f = flavorsList.find(x => x.id === e.target.value);
                   if (f) setSelectedFreeBrotoFlavor(f);
                 }}
                 className="w-full bg-white border border-stone-200 rounded px-2 py-1.5 text-[10px] font-bold text-stone-900 focus:outline-none"
               >
-                {pizzaFlavors
+                {flavorsList
                   .filter(f => f.name.toLowerCase().includes(freeBrotoSearch.toLowerCase()))
                   .map((f) => (
                     <option key={f.id} value={f.id}>

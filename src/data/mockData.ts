@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { Tenant, PizzaSapor, PizzaBorder, PizzaSize, Product, Driver, Order, FinancialTransaction } from '../types';
+import { Tenant, PizzaSapor, PizzaBorder, PizzaSize, PizzaIngredient, Product, Driver, Order, FinancialTransaction, Bairro } from '../types';
 
 export const tenants: Tenant[] = [
   {
@@ -62,18 +62,18 @@ const defaultPizzaFlavors: PizzaSapor[] = [
   { id: 'f-res-31', name: 'Primavera', isSpecial: false, additionalPrice: 0, ingredients: 'Mussarela, palmito, tomate picado, azeitona sem caroço e brócolis' },
   { id: 'f-res-32', name: 'Romanesca', isSpecial: false, additionalPrice: 0, ingredients: 'Mussarela, palmito, ervilha, bacon e catupiry' },
 
-  // Especiais Salgadas (+ R$ 12.00)
-  { id: 'f-res-33', name: 'Strogonoff de Carne', isSpecial: true, additionalPrice: 12.00, ingredients: 'Mussarela, filé, ketchup, mostarda, creme de leite e batata palha' },
-  { id: 'f-res-34', name: 'Strogonoff de Frango', isSpecial: true, additionalPrice: 10.00, ingredients: 'Mussarela, frango, ketchup, mostarda, creme de leite e batata palha' },
-  { id: 'f-res-35', name: 'Coração', isSpecial: true, additionalPrice: 12.00, ingredients: 'Mussarela, coração, tomate e catupiry' },
-  { id: 'f-res-36', name: 'Filé com Alho', isSpecial: true, additionalPrice: 14.00, ingredients: 'Mussarela, filé e alho' },
-  { id: 'f-res-37', name: 'Filé com Cebola', isSpecial: true, additionalPrice: 14.00, ingredients: 'Mussarela, filé e cebola' },
-  { id: 'f-res-38', name: 'Filé com Cheddar', isSpecial: true, additionalPrice: 15.00, ingredients: 'Mussarela, filé e cheddar' },
-  { id: 'f-res-39', name: 'Filé com Palhas', isSpecial: true, additionalPrice: 14.00, ingredients: 'Mussarela, filé e batata palha' },
-  { id: 'f-res-40', name: 'Filé com Catupiry', isSpecial: true, additionalPrice: 14.00, ingredients: 'Mussarela, filé e catupiry' },
-  { id: 'f-res-41', name: 'Filé com 4 Queijos', isSpecial: true, additionalPrice: 15.00, ingredients: 'Mussarela, filé e catupiry 4 queijos' },
-  { id: 'f-res-42', name: 'Filé com Doritos', isSpecial: true, additionalPrice: 15.00, ingredients: 'Mussarela, filé, Doritos e cheddar' },
-  { id: 'f-res-43', name: 'Bacon com Doritos', isSpecial: true, additionalPrice: 12.00, ingredients: 'Mussarela, bacon, Doritos e cheddar' },
+  // Especiais Salgadas (+ R$ 18.00)
+  { id: 'f-res-33', name: 'Strogonoff de Carne', isSpecial: true, additionalPrice: 18.00, ingredients: 'Mussarela, filé, ketchup, mostarda, creme de leite e batata palha' },
+  { id: 'f-res-34', name: 'Strogonoff de Frango', isSpecial: true, additionalPrice: 18.00, ingredients: 'Mussarela, frango, ketchup, mostarda, creme de leite e batata palha' },
+  { id: 'f-res-35', name: 'Coração', isSpecial: true, additionalPrice: 18.00, ingredients: 'Mussarela, coração, tomate e catupiry' },
+  { id: 'f-res-36', name: 'Filé com Alho', isSpecial: true, additionalPrice: 18.00, ingredients: 'Mussarela, filé e alho' },
+  { id: 'f-res-37', name: 'Filé com Cebola', isSpecial: true, additionalPrice: 18.00, ingredients: 'Mussarela, filé e cebola' },
+  { id: 'f-res-38', name: 'Filé com Cheddar', isSpecial: true, additionalPrice: 18.00, ingredients: 'Mussarela, filé e cheddar' },
+  { id: 'f-res-39', name: 'Filé com Palhas', isSpecial: true, additionalPrice: 18.00, ingredients: 'Mussarela, filé e batata palha' },
+  { id: 'f-res-40', name: 'Filé com Catupiry', isSpecial: true, additionalPrice: 18.00, ingredients: 'Mussarela, filé e catupiry' },
+  { id: 'f-res-41', name: 'Filé com 4 Queijos', isSpecial: true, additionalPrice: 18.00, ingredients: 'Mussarela, filé e catupiry 4 queijos' },
+  { id: 'f-res-42', name: 'Filé com Doritos', isSpecial: true, additionalPrice: 22.00, ingredients: 'Mussarela, filé, Doritos e cheddar' },
+  { id: 'f-res-43', name: 'Bacon com Doritos', isSpecial: true, additionalPrice: 18.00, ingredients: 'Mussarela, bacon, Doritos e cheddar' },
 
   // Tradicionais Doces
   { id: 'f-res-44', name: 'Banana Nevada', isSpecial: false, additionalPrice: 0, ingredients: 'Mussarela, banana, chocolate branco, canela e açúcar' },
@@ -113,6 +113,52 @@ const defaultPizzaBorders: PizzaBorder[] = [
   { id: 'b-res-7', name: 'Borda Catupiry com Calabresa', isSpecial: true, price: 20.00 },
   { id: 'b-res-8', name: 'Borda Chocolate com Confete', isSpecial: true, price: 20.00 },
   { id: 'b-res-9', name: 'Borda Chocolate com Morango', isSpecial: true, price: 20.00 },
+];
+
+export const defaultPizzaIngredients: PizzaIngredient[] = [
+  { id: 'ing-1', name: 'Alho', price: 3.00 },
+  { id: 'ing-2', name: 'Atum', price: 6.00 },
+  { id: 'ing-3', name: 'Azeitona sem caroço', price: 4.00 },
+  { id: 'ing-4', name: 'Bacon', price: 5.00 },
+  { id: 'ing-5', name: 'Banana', price: 4.00 },
+  { id: 'ing-6', name: 'Barbecue', price: 3.00 },
+  { id: 'ing-7', name: 'Batata palha', price: 3.00 },
+  { id: 'ing-8', name: 'Bis', price: 5.00 },
+  { id: 'ing-9', name: 'Brócolis', price: 4.00 },
+  { id: 'ing-10', name: 'Calabresa', price: 5.00 },
+  { id: 'ing-11', name: 'Canela', price: 2.00 },
+  { id: 'ing-12', name: 'Carne moída', price: 6.00 },
+  { id: 'ing-13', name: 'Catupiry', price: 5.00 },
+  { id: 'ing-14', name: 'Cebola', price: 3.00 },
+  { id: 'ing-15', name: 'Cheddar', price: 5.00 },
+  { id: 'ing-16', name: 'Chocolate branco', price: 6.00 },
+  { id: 'ing-17', name: 'Chocolate preto', price: 6.00 },
+  { id: 'ing-18', name: 'Coco ralado', price: 3.00 },
+  { id: 'ing-19', name: 'Confete', price: 5.00 },
+  { id: 'ing-20', name: 'Coração', price: 8.00 },
+  { id: 'ing-21', name: 'Creme de leite', price: 3.00 },
+  { id: 'ing-22', name: 'Doritos', price: 7.00 },
+  { id: 'ing-23', name: 'Ervilha', price: 3.00 },
+  { id: 'ing-24', name: 'Filé', price: 10.00 },
+  { id: 'ing-25', name: 'Fini', price: 6.00 },
+  { id: 'ing-26', name: 'Frango desfiado', price: 5.00 },
+  { id: 'ing-27', name: 'Granulado', price: 3.00 },
+  { id: 'ing-28', name: 'Kit Kat', price: 7.00 },
+  { id: 'ing-29', name: 'Leite condensado', price: 4.00 },
+  { id: 'ing-30', name: 'Lombinho', price: 6.00 },
+  { id: 'ing-31', name: 'Manjericão', price: 3.00 },
+  { id: 'ing-32', name: 'Milho', price: 3.00 },
+  { id: 'ing-33', name: 'Morango', price: 5.00 },
+  { id: 'ing-34', name: 'Mussarela', price: 5.00 },
+  { id: 'ing-35', name: 'Negresco', price: 5.00 },
+  { id: 'ing-36', name: 'Ovo', price: 3.00 },
+  { id: 'ing-37', name: 'Palmito', price: 6.00 },
+  { id: 'ing-38', name: 'Parmesão', price: 4.00 },
+  { id: 'ing-39', name: 'Peito de peru', price: 6.00 },
+  { id: 'ing-40', name: 'Pimentão', price: 3.00 },
+  { id: 'ing-41', name: 'Presunto', price: 4.00 },
+  { id: 'ing-42', name: 'Provolone', price: 5.00 },
+  { id: 'ing-43', name: 'Rodelas de tomate', price: 3.00 },
 ];
 
 // Products List for Tenants
@@ -187,21 +233,21 @@ const defaultProducts: Product[] = [
   {
     id: 'p-110',
     name: 'Calzone Gigante (45 CM)',
-    category: 'Pizza',
+    category: 'Calzones',
     price: 79.90,
     description: 'Delicioso calzone recheado gigante de 45 cm.',
   },
   {
     id: 'p-111',
     name: 'Calzone Médio (35 CM)',
-    category: 'Pizza',
+    category: 'Calzones',
     price: 69.90,
     description: 'Delicioso calzone recheado médio de 35 cm.',
   },
   {
     id: 'p-112',
     name: 'Calzone Broto (25 CM)',
-    category: 'Pizza',
+    category: 'Calzones',
     price: 49.90,
     description: 'Delicioso calzone recheado broto de 25 cm.',
   },
@@ -319,8 +365,28 @@ const loadSaved = <T>(key: string, defaultValue: T[]): T[] => {
   return [...defaultValue];
 };
 
-export const pizzaFlavors: PizzaSapor[] = loadSaved('saas_pizza_flavors', defaultPizzaFlavors);
+export const pizzaFlavors: PizzaSapor[] = loadSaved('saas_pizza_flavors', defaultPizzaFlavors).map(f => {
+  const isSweet = f.isSweet !== undefined 
+    ? f.isSweet 
+    : (f.id.startsWith('f-res-') && parseInt(f.id.replace('f-res-', '')) >= 44);
+  
+  let additionalPrice = f.additionalPrice;
+  if (f.id.startsWith('f-res-')) {
+    const idNum = parseInt(f.id.replace('f-res-', ''));
+    if (idNum >= 33 && idNum <= 43) {
+      if (idNum === 42) {
+        if (additionalPrice === 15.00) additionalPrice = 22.00;
+      } else {
+        if ([10.00, 12.00, 14.00, 15.00].includes(additionalPrice)) {
+          additionalPrice = 18.00;
+        }
+      }
+    }
+  }
+  return { ...f, isSweet, additionalPrice };
+});
 export const pizzaBorders: PizzaBorder[] = loadSaved('saas_pizza_borders', defaultPizzaBorders);
+export const pizzaIngredients: PizzaIngredient[] = loadSaved('saas_pizza_ingredients', defaultPizzaIngredients);
 export const products: Product[] = loadSaved('saas_products', defaultProducts);
 
 export function saveProducts(newProducts: Product[]) {
@@ -328,6 +394,14 @@ export function saveProducts(newProducts: Product[]) {
   products.push(...newProducts);
   if (typeof window !== 'undefined') {
     localStorage.setItem('saas_products', JSON.stringify(products));
+  }
+}
+
+export function savePizzaIngredients(newIngredients: PizzaIngredient[]) {
+  pizzaIngredients.length = 0;
+  pizzaIngredients.push(...newIngredients);
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('saas_pizza_ingredients', JSON.stringify(pizzaIngredients));
   }
 }
 
@@ -479,4 +553,75 @@ export const initialTransactions: FinancialTransaction[] = [
   { id: 't-2', tenantId: 'tenant-1', type: 'saída', category: 'Queijo', amount: 840.00, description: 'Compra de 30kg de Mussarela Scala', date: '2026-06-22' },
   { id: 't-3', tenantId: 'tenant-1', type: 'saída', category: 'Gás', amount: 280.00, description: 'Recarga de P45 para forno de pizza', date: '2026-06-22' },
   { id: 't-4', tenantId: 'tenant-1', type: 'entrada', category: 'Recebimento Pedido', amount: 1540.00, description: 'Soma de recebimentos de pedidos - 22/06', date: '2026-06-22' },
+];
+
+export const initialBairros: Bairro[] = [
+  { id: 'b-1', name: 'Araucária', fee: 8.00 },
+  { id: 'b-2', name: 'Área Industrial', fee: 10.00 },
+  { id: 'b-3', name: 'Bates', fee: 12.00 },
+  { id: 'b-4', name: 'Beatriz', fee: 8.00 },
+  { id: 'b-5', name: 'Bela Vista', fee: 7.00 },
+  { id: 'b-6', name: 'Bom Jesus', fee: 6.00 },
+  { id: 'b-7', name: 'Boqueirão', fee: 8.00 },
+  { id: 'b-8', name: 'Brusque', fee: 9.00 },
+  { id: 'b-9', name: 'Caça e Tiro', fee: 8.00 },
+  { id: 'b-10', name: 'Caravágio', fee: 7.00 },
+  { id: 'b-11', name: 'Caroba', fee: 9.00 },
+  { id: 'b-12', name: 'CDL', fee: 5.00 },
+  { id: 'b-13', name: 'Centenário', fee: 6.00 },
+  { id: 'b-14', name: 'Centro', fee: 5.00 },
+  { id: 'b-15', name: 'Chapada', fee: 10.00 },
+  { id: 'b-16', name: 'Cidade Alta', fee: 9.00 },
+  { id: 'b-17', name: 'Conta Dinheiro', fee: 7.00 },
+  { id: 'b-18', name: 'Copacabana', fee: 6.00 },
+  { id: 'b-19', name: 'Coral', fee: 6.00 },
+  { id: 'b-20', name: 'Cruz de Malta', fee: 8.00 },
+  { id: 'b-21', name: 'Dom Daniel', fee: 7.00 },
+  { id: 'b-22', name: 'Ferrovia', fee: 8.00 },
+  { id: 'b-23', name: 'Frei Rogério', fee: 6.00 },
+  { id: 'b-24', name: 'Gethal', fee: 8.00 },
+  { id: 'b-25', name: 'Guadalupe', fee: 9.00 },
+  { id: 'b-26', name: 'Guarujá', fee: 8.00 },
+  { id: 'b-27', name: 'Habitação', fee: 7.00 },
+  { id: 'b-28', name: 'Ipiranga', fee: 8.00 },
+  { id: 'b-29', name: 'Jardim Celina', fee: 9.00 },
+  { id: 'b-30', name: 'Jardim das Camélias', fee: 9.00 },
+  { id: 'b-31', name: 'Jardim Panorâmico', fee: 8.00 },
+  { id: 'b-32', name: 'Maria Luiza', fee: 9.00 },
+  { id: 'b-33', name: 'Morro do Posto', fee: 6.00 },
+  { id: 'b-34', name: 'Morro Grande', fee: 7.00 },
+  { id: 'b-35', name: 'Nossa Senhora Aparecida', fee: 8.00 },
+  { id: 'b-36', name: 'Passo Fundo', fee: 8.00 },
+  { id: 'b-37', name: 'Penha', fee: 7.00 },
+  { id: 'b-38', name: 'Petrópolis', fee: 7.00 },
+  { id: 'b-39', name: 'Pisani', fee: 9.00 },
+  { id: 'b-40', name: 'Ponte Grande', fee: 8.00 },
+  { id: 'b-41', name: 'Popular', fee: 8.00 },
+  { id: 'b-42', name: 'Promorar', fee: 9.00 },
+  { id: 'b-43', name: 'Restinga Seca', fee: 11.00 },
+  { id: 'b-44', name: 'Sagrado Coração de Jesus', fee: 7.00 },
+  { id: 'b-45', name: 'Santa Cândida', fee: 8.00 },
+  { id: 'b-46', name: 'Santa Catarina', fee: 7.00 },
+  { id: 'b-47', name: 'Santa Clara', fee: 8.00 },
+  { id: 'b-48', name: 'Santa Helena', fee: 6.00 },
+  { id: 'b-49', name: 'Santa Maria', fee: 8.00 },
+  { id: 'b-50', name: 'Santa Mônica', fee: 9.00 },
+  { id: 'b-51', name: 'Santa Rita', fee: 7.00 },
+  { id: 'b-52', name: 'Santo Antônio', fee: 8.00 },
+  { id: 'b-53', name: 'São Cristóvão', fee: 7.00 },
+  { id: 'b-54', name: 'São Francisco', fee: 8.00 },
+  { id: 'b-55', name: 'São Luiz', fee: 8.00 },
+  { id: 'b-56', name: 'São Miguel', fee: 9.00 },
+  { id: 'b-57', name: 'São Paulo', fee: 8.00 },
+  { id: 'b-58', name: 'São Pedro', fee: 8.00 },
+  { id: 'b-59', name: 'São Sebastião', fee: 8.00 },
+  { id: 'b-60', name: 'Triângulo', fee: 9.00 },
+  { id: 'b-61', name: 'Tributo', fee: 9.00 },
+  { id: 'b-62', name: 'Universitário', fee: 7.00 },
+  { id: 'b-63', name: 'Várzea', fee: 8.00 },
+  { id: 'b-64', name: 'Vila Comboni', fee: 8.00 },
+  { id: 'b-65', name: 'Vila Maria', fee: 7.00 },
+  { id: 'b-66', name: 'Vila Mariza', fee: 9.00 },
+  { id: 'b-67', name: 'Vila Nova', fee: 7.00 },
+  { id: 'b-68', name: 'Vista Alegre', fee: 9.00 }
 ];

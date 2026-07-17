@@ -138,6 +138,7 @@ CREATE TABLE IF NOT EXISTS customers (
   address TEXT,
   bairro TEXT,
   city TEXT,
+  addresses JSONB DEFAULT '[]'::jsonb,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -270,7 +271,8 @@ export function customerToDb(c: Customer) {
     address: c.address,
     bairro: c.bairro,
     city: c.city,
-    created_at: c.createdAt || new Date().toISOString()
+    created_at: c.createdAt || new Date().toISOString(),
+    addresses: c.addresses || []
   };
 }
 
@@ -283,7 +285,8 @@ export function dbToCustomer(row: any): Customer {
     address: row.address,
     bairro: row.bairro,
     city: row.city,
-    createdAt: row.created_at
+    createdAt: row.created_at,
+    addresses: Array.isArray(row.addresses) ? row.addresses : []
   };
 }
 
@@ -396,6 +399,15 @@ export async function testSupabaseConnection(): Promise<{ success: boolean; mess
       };
     }
 
+    // Check if addresses column exists in customers table
+    const { error: addressesError } = await client.from('customers').select('addresses').limit(1);
+    if (addressesError && (addressesError.message.includes('column "addresses" does not exist') || addressesError.code === '42703')) {
+      return {
+        success: true,
+        message: '⚠️ ATENÇÃO: Conectado, mas a coluna "addresses" não existe na tabela "customers"! Para que os múltiplos endereços de cada cliente sejam salvos em segurança, copie e execute este comando no "SQL Editor" do seu Supabase:\n\nALTER TABLE customers ADD COLUMN IF NOT EXISTS addresses JSONB DEFAULT \'[]\'::jsonb;'
+      };
+    }
+
     return { success: true, message: 'Conectado com sucesso e tabelas identificadas!' };
   } catch (error: any) {
     console.error('Erro de conexão Supabase:', error);
@@ -435,8 +447,27 @@ export async function pushLocalToSupabase(
       log += `Enviando ${customersList.length} clientes...\n`;
       const dbCustomers = customersList.map(customerToDb);
       const { error } = await client.from('customers').upsert(dbCustomers);
-      if (error) throw new Error(`Erro nos Clientes: ${error.message}`);
-      log += `✅ Clientes enviados com sucesso!\n`;
+      if (error) {
+        if (error.message.includes('column "addresses" of relation "customers" does not exist') || error.code === '42703') {
+          log += `⚠️ Coluna "addresses" ausente. Enviando clientes sem endereços adicionais...\n`;
+          const fallbackDbCustomers = dbCustomers.map(({ addresses, ...rest }: any) => rest);
+          const { error: retryErr } = await client.from('customers').upsert(fallbackDbCustomers);
+          if (retryErr) {
+            throw new Error(`Erro nos Clientes (fallback): ${retryErr.message}`);
+          }
+          log += `✅ Clientes enviados com sucesso (sem endereços adicionais)!\n`;
+          
+          setTimeout(() => {
+            window.dispatchEvent(new CustomEvent('supabase-schema-error', { 
+              detail: '⚠️ A coluna "addresses" está faltando na tabela "customers" no seu Supabase! Seus clientes estão sendo salvos sem os endereços adicionais na nuvem.\nPara corrigir e ativar o suporte a múltiplos endereços no Supabase, copie e execute o comando no "SQL Editor":\n\nALTER TABLE customers ADD COLUMN IF NOT EXISTS addresses JSONB DEFAULT \'[]\'::jsonb;'
+            }));
+          }, 500);
+        } else {
+          throw new Error(`Erro nos Clientes: ${error.message}`);
+        }
+      } else {
+        log += `✅ Clientes enviados com sucesso!\n`;
+      }
     }
 
     // 3. Sync Orders
@@ -593,9 +624,26 @@ export async function supabaseUpsertCustomer(customer: Customer) {
   const client: any = getSupabaseClient();
   if (!client) return;
   try {
-    const { error } = await client.from('customers').upsert(customerToDb(customer));
+    const dbCust = customerToDb(customer);
+    const { error } = await client.from('customers').upsert(dbCust);
     if (error) {
-      console.error('Erro ao enviar cliente ao Supabase:', error);
+      if (error.message && (error.message.includes('column "addresses" of relation "customers" does not exist') || error.code === '42703')) {
+        console.warn('Supabase: coluna "addresses" ausente na tabela "customers". Fazendo fallback...');
+        
+        // Remove addresses from payload and retry
+        const { addresses, ...fallbackDbCust } = dbCust as any;
+        const { error: retryError } = await client.from('customers').upsert(fallbackDbCust);
+        if (retryError) {
+          console.error('Erro ao enviar cliente ao Supabase (fallback):', retryError);
+        } else {
+          // Send custom event warning so they know they are losing addresses in the cloud sync!
+          window.dispatchEvent(new CustomEvent('supabase-schema-error', { 
+            detail: '⚠️ A coluna "addresses" está faltando na tabela "customers" no seu Supabase! Seus clientes estão sendo salvos sem os endereços adicionais na nuvem.\nPara corrigir e ativar o suporte a múltiplos endereços no Supabase, copie e execute o comando no "SQL Editor":\n\nALTER TABLE customers ADD COLUMN IF NOT EXISTS addresses JSONB DEFAULT \'[]\'::jsonb;'
+          }));
+        }
+      } else {
+        console.error('Erro ao enviar cliente ao Supabase:', error);
+      }
     }
   } catch (e) {
     console.error('Erro ao enviar cliente ao Supabase:', e);

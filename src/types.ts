@@ -15,6 +15,12 @@ export type OrderStatus =
 
 export type OrderType = 'Delivery' | 'Retirada' | 'Balcão';
 
+export interface Bairro {
+  id: string;
+  name: string;
+  fee: number;
+}
+
 export interface Tenant {
   id: string;
   name: string;
@@ -50,6 +56,13 @@ export interface PizzaSapor {
   isSpecial: boolean;
   additionalPrice: number; // For special flavors (e.g., Strogonoff, File com Cheddar)
   ingredients: string;
+  isSweet?: boolean;
+}
+
+export interface PizzaIngredient {
+  id: string;
+  name: string;
+  price: number;
 }
 
 export interface PizzaBorder {
@@ -71,7 +84,7 @@ export interface PizzaSize {
 export interface Product {
   id: string;
   name: string;
-  category: 'Pizza' | 'Hamburguer' | 'Bebida' | 'Acompanhamento' | 'Açai' | 'Combo';
+  category: 'Pizza' | 'Hamburguer' | 'Bebida' | 'Acompanhamento' | 'Açai' | 'Combo' | 'Calzones';
   price: number;
   description: string;
   isCombo?: boolean;
@@ -93,6 +106,7 @@ export interface OrderItem {
   flavors?: PizzaSapor[];    // Selected flavors (length matches fraction if customized)
   border?: PizzaBorder;      // Border customization
   size?: PizzaSize;          // Selected size customization
+  addedIngredients?: PizzaIngredient[][]; // Selected ingredients per flavor slot
   
   // Dynamic Combo settings
   isCombo?: boolean;

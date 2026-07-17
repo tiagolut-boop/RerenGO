@@ -246,7 +246,7 @@ export default function SaaSFinance({ transactions, currentTenantId, onAddTransa
       </div>
 
       {/* Inputs / Ledger logs */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Log a transaction */}
         <div className="bg-white border border-stone-200 rounded-2xl p-5 space-y-4 shadow-3xs">
           <h4 className="font-display font-bold text-stone-900 text-sm">Registrar Nova Transação</h4>
@@ -335,7 +335,7 @@ export default function SaaSFinance({ transactions, currentTenantId, onAddTransa
         </div>
 
         {/* Ledger view list */}
-        <div className="xl:col-span-2 bg-white border border-stone-200 rounded-2xl p-5 space-y-4 shadow-3xs">
+        <div className="lg:col-span-2 bg-white border border-stone-200 rounded-2xl p-5 space-y-4 shadow-3xs">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-stone-100 pb-3">
             <h4 className="font-display font-bold text-stone-900 text-sm">Histórico do Livro Caixa (Ledger)</h4>
             

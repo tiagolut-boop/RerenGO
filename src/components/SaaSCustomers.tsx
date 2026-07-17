@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Customer, Order, CustomerAddress } from '../types';
+import { Customer, Order, CustomerAddress, Bairro } from '../types';
 import { 
   User, 
   Phone, 
@@ -23,6 +23,7 @@ interface SaaSCustomersProps {
   onUpdateCustomers: (updated: Customer[]) => void;
   onSelectCustomerForNewOrder: (customer: Customer) => void;
   currentTenantId: string;
+  bairros: Bairro[];
 }
 
 export default function SaaSCustomers({ 
@@ -30,7 +31,8 @@ export default function SaaSCustomers({
   orders, 
   onUpdateCustomers, 
   onSelectCustomerForNewOrder,
-  currentTenantId
+  currentTenantId,
+  bairros
 }: SaaSCustomersProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [showAddForm, setShowAddForm] = useState(false);
@@ -44,6 +46,7 @@ export default function SaaSCustomers({
   const [addrFormNumber, setAddrFormNumber] = useState('');
   const [addrFormComplement, setAddrFormComplement] = useState('');
   const [addrFormBairro, setAddrFormBairro] = useState('');
+  const [showAddrFormBairroDropdown, setShowAddrFormBairroDropdown] = useState(false);
   const [addrFormCity, setAddrFormCity] = useState('Lages');
   const [addrFormReference, setAddrFormReference] = useState('');
   const [addrFormDeliveryFee, setAddrFormDeliveryFee] = useState<number | ''>('');
@@ -57,6 +60,7 @@ export default function SaaSCustomers({
   const [newNumber, setNewNumber] = useState('');
   const [newComplement, setNewComplement] = useState('');
   const [newBairro, setNewBairro] = useState('');
+  const [showNewBairroDropdown, setShowNewBairroDropdown] = useState(false);
   const [newCity, setNewCity] = useState('Lages');
 
   // Form States for editing
@@ -66,6 +70,7 @@ export default function SaaSCustomers({
   const [editNumber, setEditNumber] = useState('');
   const [editComplement, setEditComplement] = useState('');
   const [editBairro, setEditBairro] = useState('');
+  const [showEditBairroDropdown, setShowEditBairroDropdown] = useState(false);
   const [editCity, setEditCity] = useState('');
 
   // Helper to parse address strings of format "Street, Number - Complement" or similar
@@ -126,6 +131,12 @@ export default function SaaSCustomers({
     e.preventDefault();
     if (!newName || !newPhone) {
       alert('⚠️ Por favor, informe o Nome e Telefone do cliente!');
+      return;
+    }
+
+    const matchedBairro = bairros.find(b => b.name.toLowerCase() === newBairro.trim().toLowerCase());
+    if (newBairro && !matchedBairro) {
+      alert(`⚠️ O bairro "${newBairro}" não está cadastrado! Por favor, escolha um bairro válido na lista.`);
       return;
     }
 
@@ -218,6 +229,12 @@ export default function SaaSCustomers({
     if (!editingCustomer) return;
     if (!editName || !editPhone) {
       alert('⚠️ Nome e Telefone são campos obrigatórios!');
+      return;
+    }
+
+    const matchedBairro = bairros.find(b => b.name.toLowerCase() === editBairro.trim().toLowerCase());
+    if (editBairro && !matchedBairro) {
+      alert(`⚠️ O bairro "${editBairro}" não está cadastrado! Por favor, escolha um bairro válido na lista.`);
       return;
     }
 
@@ -401,16 +418,56 @@ export default function SaaSCustomers({
               />
             </div>
 
-            <div className="md:col-span-2">
-              <label className="block text-[10px] text-stone-500 font-bold uppercase mb-1">Bairro</label>
-              <input
-                type="text"
-                placeholder="Ex: Centro"
-                value={newBairro}
-                onChange={(e) => setNewBairro(e.target.value)}
-                className="w-full bg-white border border-stone-200 rounded-lg px-3 py-2 text-stone-900 focus:outline-none focus:border-orange-500 font-medium"
-              />
-            </div>
+             <div className="md:col-span-2 relative">
+               <label className="block text-[10px] text-stone-500 font-bold uppercase mb-1">Bairro *</label>
+               <input
+                 type="text"
+                 placeholder="Digite para buscar..."
+                 value={newBairro}
+                 onChange={(e) => {
+                   setNewBairro(e.target.value);
+                   setShowNewBairroDropdown(true);
+                 }}
+                 onFocus={() => setShowNewBairroDropdown(true)}
+                 className="w-full bg-white border border-stone-200 rounded-lg px-3 py-2 text-stone-900 focus:outline-none focus:border-orange-500 font-medium"
+               />
+               {showNewBairroDropdown && (
+                 <>
+                   <div 
+                     className="fixed inset-0 z-40" 
+                     onClick={() => setShowNewBairroDropdown(false)} 
+                   />
+                   <div className="absolute left-0 right-0 mt-1 max-h-48 overflow-y-auto bg-white border border-stone-200 rounded-lg shadow-xl z-50 text-xs">
+                     {bairros
+                       .filter(b => b.name.toLowerCase().includes(newBairro.toLowerCase()))
+                       .sort((a, b) => {
+                         const aStartsWith = a.name.toLowerCase().startsWith(newBairro.toLowerCase());
+                         const bStartsWith = b.name.toLowerCase().startsWith(newBairro.toLowerCase());
+                         if (aStartsWith && !bStartsWith) return -1;
+                         if (!aStartsWith && bStartsWith) return 1;
+                         return a.name.localeCompare(b.name);
+                       })
+                       .map((b) => (
+                         <button
+                           key={b.id}
+                           type="button"
+                           onClick={() => {
+                             setNewBairro(b.name);
+                             setShowNewBairroDropdown(false);
+                           }}
+                           className="w-full text-left px-3 py-2 hover:bg-orange-50 hover:text-orange-950 border-b border-stone-100 last:border-b-0 font-bold transition-all flex items-center justify-between"
+                         >
+                           <span>{b.name}</span>
+                           <span className="text-[10px] text-stone-400 font-mono">Taxa: R$ {b.fee.toFixed(2)}</span>
+                         </button>
+                       ))}
+                     {bairros.filter(b => b.name.toLowerCase().includes(newBairro.toLowerCase())).length === 0 && (
+                       <div className="p-3 text-stone-400 text-center font-medium">Bairro não cadastrado. Selecione um bairro existente de Lages.</div>
+                     )}
+                   </div>
+                 </>
+               )}
+             </div>
 
             <div className="md:col-span-2">
               <label className="block text-[10px] text-stone-500 font-bold uppercase mb-1">Cidade</label>
@@ -505,15 +562,56 @@ export default function SaaSCustomers({
               />
             </div>
 
-            <div className="md:col-span-2">
-              <label className="block text-[10px] text-stone-500 font-bold uppercase mb-1">Bairro</label>
-              <input
-                type="text"
-                value={editBairro}
-                onChange={(e) => setEditBairro(e.target.value)}
-                className="w-full bg-white border border-stone-200 rounded-lg px-3 py-2 text-stone-900 focus:outline-none focus:border-amber-500 font-medium"
-              />
-            </div>
+             <div className="md:col-span-2 relative">
+               <label className="block text-[10px] text-stone-500 font-bold uppercase mb-1">Bairro *</label>
+               <input
+                 type="text"
+                 placeholder="Digite para buscar..."
+                 value={editBairro}
+                 onChange={(e) => {
+                   setEditBairro(e.target.value);
+                   setShowEditBairroDropdown(true);
+                 }}
+                 onFocus={() => setShowEditBairroDropdown(true)}
+                 className="w-full bg-white border border-stone-200 rounded-lg px-3 py-2 text-stone-900 focus:outline-none focus:border-amber-500 font-medium"
+               />
+               {showEditBairroDropdown && (
+                 <>
+                   <div 
+                     className="fixed inset-0 z-40" 
+                     onClick={() => setShowEditBairroDropdown(false)} 
+                   />
+                   <div className="absolute left-0 right-0 mt-1 max-h-48 overflow-y-auto bg-white border border-stone-200 rounded-lg shadow-xl z-50 text-xs">
+                     {bairros
+                       .filter(b => b.name.toLowerCase().includes(editBairro.toLowerCase()))
+                       .sort((a, b) => {
+                         const aStartsWith = a.name.toLowerCase().startsWith(editBairro.toLowerCase());
+                         const bStartsWith = b.name.toLowerCase().startsWith(editBairro.toLowerCase());
+                         if (aStartsWith && !bStartsWith) return -1;
+                         if (!aStartsWith && bStartsWith) return 1;
+                         return a.name.localeCompare(b.name);
+                       })
+                       .map((b) => (
+                         <button
+                           key={b.id}
+                           type="button"
+                           onClick={() => {
+                             setEditBairro(b.name);
+                             setShowEditBairroDropdown(false);
+                           }}
+                           className="w-full text-left px-3 py-2 hover:bg-orange-50 hover:text-orange-950 border-b border-stone-100 last:border-b-0 font-bold transition-all flex items-center justify-between"
+                         >
+                           <span>{b.name}</span>
+                           <span className="text-[10px] text-stone-400 font-mono">Taxa: R$ {b.fee.toFixed(2)}</span>
+                         </button>
+                       ))}
+                     {bairros.filter(b => b.name.toLowerCase().includes(editBairro.toLowerCase())).length === 0 && (
+                       <div className="p-3 text-stone-400 text-center font-medium">Bairro não cadastrado. Selecione um bairro existente de Lages.</div>
+                     )}
+                   </div>
+                 </>
+               )}
+             </div>
 
             <div className="md:col-span-2">
               <label className="block text-[10px] text-stone-500 font-bold uppercase mb-1">Cidade</label>
@@ -688,17 +786,63 @@ export default function SaaSCustomers({
                       className="w-full bg-white border border-stone-200 rounded px-2.5 py-1.5 text-stone-900 focus:outline-none focus:border-orange-500"
                     />
                   </div>
-                  <div className="sm:col-span-2">
-                    <label className="block text-[9px] text-stone-500 font-bold uppercase mb-0.5">Bairro *</label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="Ex: Centro"
-                      value={addrFormBairro}
-                      onChange={(e) => setAddrFormBairro(e.target.value)}
-                      className="w-full bg-white border border-stone-200 rounded px-2.5 py-1.5 text-stone-900 focus:outline-none focus:border-orange-500 font-semibold"
-                    />
-                  </div>
+                   <div className="sm:col-span-2 relative">
+                     <label className="block text-[9px] text-stone-500 font-bold uppercase mb-0.5">Bairro *</label>
+                     <input
+                       type="text"
+                       required
+                       placeholder="Digite para buscar..."
+                       value={addrFormBairro}
+                       onChange={(e) => {
+                         setAddrFormBairro(e.target.value);
+                         setShowAddrFormBairroDropdown(true);
+                         // Automatically match delivery fee if they select or type a valid Bairro
+                         const matched = bairros.find(b => b.name.toLowerCase() === e.target.value.toLowerCase().trim());
+                         if (matched) {
+                           setAddrFormDeliveryFee(matched.fee);
+                         }
+                       }}
+                       onFocus={() => setShowAddrFormBairroDropdown(true)}
+                       className="w-full bg-white border border-stone-200 rounded px-2.5 py-1.5 text-stone-900 focus:outline-none focus:border-orange-500 font-semibold"
+                     />
+                     {showAddrFormBairroDropdown && (
+                       <>
+                         <div 
+                           className="fixed inset-0 z-40" 
+                           onClick={() => setShowAddrFormBairroDropdown(false)} 
+                         />
+                         <div className="absolute left-0 right-0 mt-1 max-h-48 overflow-y-auto bg-white border border-stone-200 rounded-lg shadow-xl z-50 text-xs">
+                           {bairros
+                             .filter(b => b.name.toLowerCase().includes(addrFormBairro.toLowerCase()))
+                             .sort((a, b) => {
+                               const aStartsWith = a.name.toLowerCase().startsWith(addrFormBairro.toLowerCase());
+                               const bStartsWith = b.name.toLowerCase().startsWith(addrFormBairro.toLowerCase());
+                               if (aStartsWith && !bStartsWith) return -1;
+                               if (!aStartsWith && bStartsWith) return 1;
+                               return a.name.localeCompare(b.name);
+                             })
+                             .map((b) => (
+                               <button
+                                 key={b.id}
+                                 type="button"
+                                 onClick={() => {
+                                   setAddrFormBairro(b.name);
+                                   setAddrFormDeliveryFee(b.fee);
+                                   setShowAddrFormBairroDropdown(false);
+                                 }}
+                                 className="w-full text-left px-3 py-2 hover:bg-orange-50 hover:text-orange-950 border-b border-stone-100 last:border-b-0 font-bold transition-all flex items-center justify-between"
+                               >
+                                 <span>{b.name}</span>
+                                 <span className="text-[10px] text-stone-400 font-mono">Taxa: R$ {b.fee.toFixed(2)}</span>
+                               </button>
+                             ))}
+                           {bairros.filter(b => b.name.toLowerCase().includes(addrFormBairro.toLowerCase())).length === 0 && (
+                             <div className="p-3 text-stone-400 text-center font-medium">Bairro não cadastrado. Selecione um bairro existente de Lages.</div>
+                           )}
+                         </div>
+                       </>
+                     )}
+                   </div>
                   <div className="sm:col-span-2">
                     <label className="block text-[9px] text-stone-500 font-bold uppercase mb-0.5">Cidade *</label>
                     <input
@@ -734,6 +878,11 @@ export default function SaaSCustomers({
                     onClick={() => {
                       if (!addrFormName || !addrFormStreet || !addrFormNumber || !addrFormBairro || !addrFormCity) {
                         alert('⚠️ Identificação, Rua, Número, Bairro e Cidade são obrigatórios!');
+                        return;
+                      }
+                      const matchedBairro = bairros.find(b => b.name.toLowerCase() === addrFormBairro.trim().toLowerCase());
+                      if (!matchedBairro) {
+                        alert(`⚠️ O bairro "${addrFormBairro}" não está cadastrado! Por favor, escolha um bairro válido na lista.`);
                         return;
                       }
                       const newAddr: CustomerAddress = {

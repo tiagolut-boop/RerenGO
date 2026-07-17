@@ -5,7 +5,7 @@
 
 import React from 'react';
 import { Order, OrderStatus, Driver } from '../types';
-import { ChefHat, Flame, PackageCheck, Bike, ShieldCheck, CheckSquare, XCircle, ArrowRight } from 'lucide-react';
+import { ChefHat, Flame, PackageCheck, Bike, ShieldCheck, CheckSquare, XCircle, ArrowRight, Undo } from 'lucide-react';
 
 interface SaaSKanbanProps {
   orders: Order[];
@@ -43,6 +43,11 @@ export default function SaaSKanban({ orders, drivers, currentTenantId, onUpdateO
         assignedDriverName = drv.name;
         extraLogs = `Status alterado para ${nextStatus}. Atribuído ao motoboy ${drv.name}`;
       }
+    }
+
+    if (nextStatus === 'Pronto') {
+      assignedDriverId = undefined;
+      assignedDriverName = undefined;
     }
 
     const updatedOrder: Order = {
@@ -97,7 +102,7 @@ export default function SaaSKanban({ orders, drivers, currentTenantId, onUpdateO
       </div>
 
       {/* Kanban Board Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-4 overflow-x-auto pb-4">
+      <div className="flex flex-col md:flex-row gap-4 overflow-x-auto pb-4">
         {columns.map((col) => {
           const colOrders = tenantOrders.filter((o) => o.status === col.status);
           const Icon = col.icon;
@@ -105,7 +110,7 @@ export default function SaaSKanban({ orders, drivers, currentTenantId, onUpdateO
           return (
             <div
               key={col.status}
-              className="bg-white border border-stone-200 rounded-2xl p-4 flex flex-col min-w-[220px] min-h-[480px] shadow-3xs"
+              className="flex-1 min-w-[220px] bg-white border border-stone-200 rounded-2xl p-4 flex flex-col min-h-[480px] shadow-3xs"
             >
               {/* Column Header */}
               <div className={`border-t-4 ${col.color} pt-2 pb-3 mb-3 border-b border-stone-100 flex items-center justify-between`}>
@@ -164,53 +169,94 @@ export default function SaaSKanban({ orders, drivers, currentTenantId, onUpdateO
                         )}
 
                         {order.status === 'Em Produção' && (
-                          <button
-                            onClick={() => moveStatus(order, 'No Forno')}
-                            className="w-full bg-orange-600 hover:bg-orange-500 text-white font-bold py-1.5 px-2 rounded-xl text-[10px] flex items-center justify-center gap-1 transition-all shadow-3xs cursor-pointer"
-                          >
-                            Colocar no Forno / Prep
-                            <ArrowRight className="w-3 h-3" />
-                          </button>
+                          <div className="flex gap-1.5">
+                            <button
+                              onClick={() => moveStatus(order, 'Confirmado')}
+                              className="bg-stone-100 hover:bg-stone-200 text-stone-600 font-bold p-1.5 rounded-xl text-[10px] flex items-center justify-center gap-1 transition-all cursor-pointer border border-stone-200 shrink-0"
+                              title="Voltar para Novos / Aceitos"
+                            >
+                              <Undo className="w-3.5 h-3.5" />
+                              <span>Voltar</span>
+                            </button>
+                            <button
+                              onClick={() => moveStatus(order, 'No Forno')}
+                              className="flex-1 bg-orange-600 hover:bg-orange-500 text-white font-bold py-1.5 px-2 rounded-xl text-[10px] flex items-center justify-center gap-1 transition-all shadow-3xs cursor-pointer font-black"
+                            >
+                              Colocar Forno
+                              <ArrowRight className="w-3 h-3" />
+                            </button>
+                          </div>
                         )}
 
                         {order.status === 'No Forno' && (
-                          <button
-                            onClick={() => moveStatus(order, 'Pronto')}
-                            className="w-full bg-orange-600 hover:bg-orange-500 text-white font-bold py-1.5 px-2 rounded-xl text-[10px] flex items-center justify-center gap-1 transition-all shadow-3xs cursor-pointer"
-                          >
-                            Finalizar & Embalar
-                            <ArrowRight className="w-3 h-3" />
-                          </button>
+                          <div className="flex gap-1.5">
+                            <button
+                              onClick={() => moveStatus(order, 'Em Produção')}
+                              className="bg-stone-100 hover:bg-stone-200 text-stone-600 font-bold p-1.5 rounded-xl text-[10px] flex items-center justify-center gap-1 transition-all cursor-pointer border border-stone-200 shrink-0"
+                              title="Voltar para Em Produção"
+                            >
+                              <Undo className="w-3.5 h-3.5" />
+                              <span>Voltar</span>
+                            </button>
+                            <button
+                              onClick={() => moveStatus(order, 'Pronto')}
+                              className="flex-1 bg-orange-600 hover:bg-orange-500 text-white font-bold py-1.5 px-2 rounded-xl text-[10px] flex items-center justify-center gap-1 transition-all shadow-3xs cursor-pointer font-black"
+                            >
+                              Pronto/Embalar
+                              <ArrowRight className="w-3 h-3" />
+                            </button>
+                          </div>
                         )}
 
                         {order.status === 'Pronto' && (
                           <div className="space-y-1.5">
                             {order.type === 'Delivery' ? (
-                              <>
-                                <select
-                                  onChange={(e) => {
-                                    if (e.target.value) {
-                                      moveStatus(order, 'Saiu para Entrega', e.target.value);
-                                    }
-                                  }}
-                                  defaultValue=""
-                                  className="w-full bg-white text-[10px] border border-stone-200 text-stone-700 rounded-lg px-1.5 py-1.5 focus:outline-none focus:border-orange-500 font-medium"
+                              <div className="flex gap-1.5 items-center">
+                                <button
+                                  onClick={() => moveStatus(order, 'No Forno')}
+                                  className="bg-stone-100 hover:bg-stone-200 text-stone-600 font-bold p-2.5 rounded-xl text-[10px] flex items-center justify-center gap-1 transition-all cursor-pointer border border-stone-200 shrink-0"
+                                  title="Voltar para No Forno"
                                 >
-                                  <option value="" disabled>Selecionar Motoboy...</option>
-                                  {tenantDrivers.map((d) => (
-                                    <option key={d.id} value={d.id}>{d.name}</option>
-                                  ))}
-                                </select>
-                                <p className="text-[9px] text-stone-400 text-center font-bold uppercase font-mono">Atribuir motoboy despacha automático</p>
-                              </>
+                                  <Undo className="w-3.5 h-3.5" />
+                                </button>
+                                <div className="flex-1">
+                                  <select
+                                    onChange={(e) => {
+                                      if (e.target.value) {
+                                        moveStatus(order, 'Saiu para Entrega', e.target.value);
+                                      }
+                                    }}
+                                    defaultValue=""
+                                    className="w-full bg-white text-[10px] border border-stone-200 text-stone-700 rounded-lg px-1.5 py-1.5 focus:outline-none focus:border-orange-500 font-medium"
+                                  >
+                                    <option value="" disabled>Selecionar Motoboy...</option>
+                                    {tenantDrivers.map((d) => (
+                                      <option key={d.id} value={d.id}>{d.name}</option>
+                                    ))}
+                                  </select>
+                                </div>
+                              </div>
                             ) : (
-                              <button
-                                onClick={() => moveStatus(order, 'Entregue')}
-                                className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-1.5 px-2 rounded-xl text-[10px] flex items-center justify-center gap-1 transition-all shadow-3xs cursor-pointer"
-                              >
-                                Entregar p/ Cliente
-                                <ArrowRight className="w-3 h-3" />
-                              </button>
+                              <div className="flex gap-1.5">
+                                <button
+                                  onClick={() => moveStatus(order, 'No Forno')}
+                                  className="bg-stone-100 hover:bg-stone-200 text-stone-600 font-bold p-1.5 rounded-xl text-[10px] flex items-center justify-center gap-1 transition-all cursor-pointer border border-stone-200 shrink-0"
+                                  title="Voltar para No Forno"
+                                >
+                                  <Undo className="w-3.5 h-3.5" />
+                                  <span>Voltar</span>
+                                </button>
+                                <button
+                                  onClick={() => moveStatus(order, 'Entregue')}
+                                  className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-1.5 px-2 rounded-xl text-[10px] flex items-center justify-center gap-1 transition-all shadow-3xs cursor-pointer font-black"
+                                >
+                                  Entregar p/ Cliente
+                                  <ArrowRight className="w-3 h-3" />
+                                </button>
+                              </div>
+                            )}
+                            {order.type === 'Delivery' && (
+                              <p className="text-[9px] text-stone-400 text-center font-bold uppercase font-mono">Atribuir motoboy despacha automático</p>
                             )}
                           </div>
                         )}
@@ -220,12 +266,22 @@ export default function SaaSKanban({ orders, drivers, currentTenantId, onUpdateO
                             <p className="text-[10px] text-orange-700 font-bold mb-1 text-center font-mono uppercase bg-orange-50 py-0.5 rounded border border-orange-100">
                               Motoboy: {order.driverName?.split(' ')[0]}
                             </p>
-                            <button
-                              onClick={() => moveStatus(order, 'Entregue')}
-                              className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-1.5 px-2 rounded-xl text-[10px] flex items-center justify-center gap-1 transition-all shadow-3xs cursor-pointer"
-                            >
-                              Confirmar Entrega
-                            </button>
+                            <div className="flex gap-1.5">
+                              <button
+                                onClick={() => moveStatus(order, 'Pronto')}
+                                className="bg-stone-100 hover:bg-stone-200 text-stone-600 font-bold p-1.5 rounded-xl text-[10px] flex items-center justify-center gap-1 transition-all cursor-pointer border border-stone-200 shrink-0"
+                                title="Voltar para Pronto"
+                              >
+                                <Undo className="w-3.5 h-3.5" />
+                                <span>Voltar</span>
+                              </button>
+                              <button
+                                onClick={() => moveStatus(order, 'Entregue')}
+                                className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-1.5 px-2 rounded-xl text-[10px] flex items-center justify-center gap-1 transition-all shadow-3xs cursor-pointer font-black"
+                              >
+                                Confirmar Entrega
+                              </button>
+                            </div>
                           </div>
                         )}
                       </div>

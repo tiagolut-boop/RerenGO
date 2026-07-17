@@ -4,8 +4,8 @@
  */
 
 import React, { useState } from 'react';
-import { tenants, initialOrders, initialTransactions, drivers } from './data/mockData';
-import { Order, FinancialTransaction, Tenant, OrderStatus, Customer } from './types';
+import { tenants, initialOrders, initialTransactions, drivers, initialBairros } from './data/mockData';
+import { Order, FinancialTransaction, Tenant, OrderStatus, Customer, Driver, Bairro } from './types';
 
 // Import subcomponents
 import ArchitectureDoc from './components/ArchitectureDoc';
@@ -142,6 +142,10 @@ export default function App() {
     return localStorage.getItem('saas_is_logged_in') === 'true';
   });
 
+  const [showWelcomeModal, setShowWelcomeModal] = useState<boolean>(() => {
+    return sessionStorage.getItem('saas_welcome_shown') !== 'true';
+  });
+
   const [isMaster, setIsMaster] = useState<boolean>(() => {
     return localStorage.getItem('saas_is_master') === 'true';
   });
@@ -254,6 +258,9 @@ export default function App() {
       localStorage.removeItem('saas_is_master_original');
     }
     localStorage.setItem('saas_active_tenant', JSON.stringify(tenant));
+    // Reset welcome message so they see it upon login
+    sessionStorage.removeItem('saas_welcome_shown');
+    setShowWelcomeModal(true);
   };
 
   const handleSaaSLogout = () => {
@@ -418,6 +425,48 @@ export default function App() {
         }
       });
 
+      return next;
+    });
+  };
+
+  // Lifted drivers state shared between SaaSKanban and SaaSMotoboys
+  const [driversList, setDriversList] = useState<Driver[]>(() => {
+    const saved = localStorage.getItem('saas_drivers');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    return drivers;
+  });
+
+  const handleUpdateDrivers = (updated: Driver[] | ((prev: Driver[]) => Driver[])) => {
+    setDriversList(prev => {
+      const next = typeof updated === 'function' ? updated(prev) : updated;
+      localStorage.setItem('saas_drivers', JSON.stringify(next));
+      return next;
+    });
+  };
+
+  // Lifted bairros state shared between components
+  const [bairrosList, setBairrosList] = useState<Bairro[]>(() => {
+    const saved = localStorage.getItem('saas_bairros');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    return initialBairros;
+  });
+
+  const handleUpdateBairros = (updated: Bairro[] | ((prev: Bairro[]) => Bairro[])) => {
+    setBairrosList(prev => {
+      const next = typeof updated === 'function' ? updated(prev) : updated;
+      localStorage.setItem('saas_bairros', JSON.stringify(next));
       return next;
     });
   };
@@ -720,12 +769,18 @@ export default function App() {
   const tenantOrders = orders.filter((o) => o.tenantId === activeTenant.id);
   const tenantTxs = transactions.filter((t) => t.tenantId === activeTenant.id);
 
-  // Total daily revenue (today is simulated as 2026-06-23)
+  // Total daily revenue (today includes both the simulated mock date '2026-06-23' and the actual system date)
+  const todayStr = new Date().toISOString().split('T')[0];
+
   const faturamentoHoje = tenantTxs
-    .filter((t) => t.type === 'entrada' && t.date === '2026-06-23')
+    .filter((t) => t.type === 'entrada' && (t.date === '2026-06-23' || t.date === todayStr))
     .reduce((sum, t) => sum + t.amount, 0);
 
-  const pedidosHoje = tenantOrders.filter((o) => o.createdAt.startsWith('2026-06-23') || o.createdAt.includes('site')).length;
+  const pedidosHoje = tenantOrders.filter((o) => 
+    o.createdAt.startsWith('2026-06-23') || 
+    o.createdAt.startsWith(todayStr) ||
+    o.createdAt.includes('site')
+  ).length;
   
   const ticketMedio = pedidosHoje > 0 ? faturamentoHoje / pedidosHoje : 0;
 
@@ -787,6 +842,56 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[#fafaf7] text-stone-800 flex flex-col antialiased font-sans">
+      {/* WELCOME BLESSING MODAL OVERLAY */}
+      {showWelcomeModal && (
+        <div className="fixed inset-0 bg-stone-950/60 backdrop-blur-xs flex items-center justify-center z-[220] p-4">
+          <div className="bg-white rounded-3xl border border-amber-200/60 shadow-2xl max-w-lg w-full overflow-hidden flex flex-col relative animate-fade-in">
+            {/* Elegant Header with warm gradient and sparkles */}
+            <div className="bg-gradient-to-br from-amber-50 to-orange-50/50 p-6 text-center border-b border-amber-100/50 flex flex-col items-center">
+              <div className="w-14 h-14 bg-amber-100/80 rounded-full flex items-center justify-center border border-amber-200 shadow-3xs">
+                <Sparkles className="w-7 h-7 text-amber-600" />
+              </div>
+              <h2 className="font-display font-black text-amber-900 text-lg uppercase tracking-wider mt-3">
+                🙏 Prosperidade e Bênção
+              </h2>
+            </div>
+
+            {/* Sacred Word Quote */}
+            <div className="px-6 md:px-8 py-6 bg-amber-50/25 border-b border-amber-100/40 text-center">
+              <p className="text-stone-700 italic text-sm md:text-[15px] leading-relaxed font-serif">
+                "Seja sobre nós a graça do Senhor, nosso Deus; confirma sobre nós a obra das nossas mãos."
+              </p>
+              <p className="text-amber-700 font-display font-bold text-xs uppercase tracking-widest mt-3.5">
+                Salmos 90:17
+              </p>
+            </div>
+
+            {/* Welcome & Good Sales message */}
+            <div className="p-6 md:p-8 text-center space-y-3.5">
+              <h3 className="font-display font-black text-stone-900 text-lg">
+                Desejamos ótimas vendas, {activeTenant.representativeName || 'Parceiro'}! 🍕✨
+              </h3>
+              <p className="text-stone-600 text-xs md:text-sm leading-relaxed">
+                Seja muito bem-vindo ao seu painel operacional da <strong>{activeTenant.name}</strong>. Que cada pizza assada com carinho se transforme em felicidade para os seus clientes e sucesso abundante para o seu negócio!
+              </p>
+            </div>
+
+            {/* CTA Close Button */}
+            <div className="px-6 pb-8 pt-2 flex justify-center">
+              <button
+                onClick={() => {
+                  setShowWelcomeModal(false);
+                  sessionStorage.setItem('saas_welcome_shown', 'true');
+                }}
+                className="bg-amber-600 hover:bg-amber-500 text-white font-black py-3.5 px-8 rounded-2xl shadow-md cursor-pointer transition-all flex items-center justify-center gap-2 transform active:scale-95 text-xs uppercase tracking-wider min-w-[200px]"
+              >
+                <span>Amém! Começar o Expediente</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* PERSISTENT NEW ORDER MODAL OVERLAY */}
       {activeIncomingOrder && (
         <div className="fixed inset-0 bg-stone-900/75 backdrop-blur-xs flex items-center justify-center z-[200] p-4">
@@ -1229,6 +1334,15 @@ export default function App() {
                   {!isSidebarCollapsed && <span className="truncate">Cadastro Pizzaria</span>}
                 </button>
 
+                <button
+                  onClick={() => setShowWelcomeModal(true)}
+                  className={`flex items-center ${isSidebarCollapsed ? 'justify-center p-0 h-11' : 'gap-3 px-3 py-2.5'} rounded-xl text-xs font-bold transition-all w-full text-left cursor-pointer text-amber-700 hover:text-amber-800 hover:bg-amber-50/40 border border-amber-100/30`}
+                  title="Mensagem de Bênção"
+                >
+                  <Sparkles className="w-4 h-4 shrink-0 text-amber-600 animate-pulse-subtle" />
+                  {!isSidebarCollapsed && <span className="truncate">Mensagem de Bênção</span>}
+                </button>
+
                 {isTechnicalUser && (
                   <>
                     <button
@@ -1276,6 +1390,8 @@ export default function App() {
                   onUpdateCustomers={handleUpdateCustomers}
                   preSelectedCustomer={preSelectedCustomer}
                   onClearPreSelectedCustomer={() => setPreSelectedCustomer(null)}
+                  bairros={bairrosList}
+                  onUpdateBairros={handleUpdateBairros}
                 />
               )}
 
@@ -1290,6 +1406,7 @@ export default function App() {
                      setPreSelectedCustomer(cust);
                      setActiveTab('orders');
                   }}
+                  bairros={bairrosList}
                 />
               )}
 
@@ -1297,7 +1414,7 @@ export default function App() {
               {activeTab === 'kds' && (
                 <SaaSKanban
                   orders={orders}
-                  drivers={drivers}
+                  drivers={driversList}
                   currentTenantId={activeTenant.id}
                   onUpdateOrders={handleUpdateOrders}
                   onLogTransaction={handleLogTransaction}
@@ -1325,8 +1442,12 @@ export default function App() {
               {activeTab === 'drivers' && (
                 <SaaSMotoboys
                   orders={orders}
+                  drivers={driversList}
+                  onUpdateDrivers={handleUpdateDrivers}
                   currentTenantId={activeTenant.id}
                   onLogTransaction={handleLogTransaction}
+                  bairros={bairrosList}
+                  onUpdateBairros={handleUpdateBairros}
                 />
               )}
 

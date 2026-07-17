@@ -5,86 +5,9 @@
 
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Order, OrderItem, OrderStatus, OrderType, Product, PizzaSapor, PizzaBorder, PizzaSize, Customer, CustomerAddress } from '../types';
-import { pizzaFlavors, pizzaBorders, products, pizzaSizes } from '../data/mockData';
+import { Order, OrderItem, OrderStatus, OrderType, Product, PizzaSapor, PizzaBorder, PizzaSize, Customer, CustomerAddress, PizzaIngredient, Bairro } from '../types';
+import { pizzaFlavors, pizzaBorders, products, pizzaSizes, pizzaIngredients } from '../data/mockData';
 import { Edit, Save, Plus, Trash2, Clock, MapPin, User, Phone, CheckCircle, HelpCircle, XCircle, FileText, ArrowRight, Printer } from 'lucide-react';
-
-interface Bairro {
-  id: string;
-  name: string;
-  fee: number;
-}
-
-const initialBairros: Bairro[] = [
-  { id: 'b-1', name: 'Araucária', fee: 8.00 },
-  { id: 'b-2', name: 'Área Industrial', fee: 10.00 },
-  { id: 'b-3', name: 'Bates', fee: 12.00 },
-  { id: 'b-4', name: 'Beatriz', fee: 8.00 },
-  { id: 'b-5', name: 'Bela Vista', fee: 7.00 },
-  { id: 'b-6', name: 'Bom Jesus', fee: 6.00 },
-  { id: 'b-7', name: 'Boqueirão', fee: 8.00 },
-  { id: 'b-8', name: 'Brusque', fee: 9.00 },
-  { id: 'b-9', name: 'Caça e Tiro', fee: 8.00 },
-  { id: 'b-10', name: 'Caravágio', fee: 7.00 },
-  { id: 'b-11', name: 'Caroba', fee: 9.00 },
-  { id: 'b-12', name: 'CDL', fee: 5.00 },
-  { id: 'b-13', name: 'Centenário', fee: 6.00 },
-  { id: 'b-14', name: 'Centro', fee: 5.00 },
-  { id: 'b-15', name: 'Chapada', fee: 10.00 },
-  { id: 'b-16', name: 'Cidade Alta', fee: 9.00 },
-  { id: 'b-17', name: 'Conta Dinheiro', fee: 7.00 },
-  { id: 'b-18', name: 'Copacabana', fee: 6.00 },
-  { id: 'b-19', name: 'Coral', fee: 6.00 },
-  { id: 'b-20', name: 'Cruz de Malta', fee: 8.00 },
-  { id: 'b-21', name: 'Dom Daniel', fee: 7.00 },
-  { id: 'b-22', name: 'Ferrovia', fee: 8.00 },
-  { id: 'b-23', name: 'Frei Rogério', fee: 6.00 },
-  { id: 'b-24', name: 'Gethal', fee: 8.00 },
-  { id: 'b-25', name: 'Guadalupe', fee: 9.00 },
-  { id: 'b-26', name: 'Guarujá', fee: 8.00 },
-  { id: 'b-27', name: 'Habitação', fee: 7.00 },
-  { id: 'b-28', name: 'Ipiranga', fee: 8.00 },
-  { id: 'b-29', name: 'Jardim Celina', fee: 9.00 },
-  { id: 'b-30', name: 'Jardim das Camélias', fee: 9.00 },
-  { id: 'b-31', name: 'Jardim Panorâmico', fee: 8.00 },
-  { id: 'b-32', name: 'Maria Luiza', fee: 9.00 },
-  { id: 'b-33', name: 'Morro do Posto', fee: 6.00 },
-  { id: 'b-34', name: 'Morro Grande', fee: 7.00 },
-  { id: 'b-35', name: 'Nossa Senhora Aparecida', fee: 8.00 },
-  { id: 'b-36', name: 'Passo Fundo', fee: 8.00 },
-  { id: 'b-37', name: 'Penha', fee: 7.00 },
-  { id: 'b-38', name: 'Petrópolis', fee: 7.00 },
-  { id: 'b-39', name: 'Pisani', fee: 9.00 },
-  { id: 'b-40', name: 'Ponte Grande', fee: 8.00 },
-  { id: 'b-41', name: 'Popular', fee: 8.00 },
-  { id: 'b-42', name: 'Promorar', fee: 9.00 },
-  { id: 'b-43', name: 'Restinga Seca', fee: 11.00 },
-  { id: 'b-44', name: 'Sagrado Coração de Jesus', fee: 7.00 },
-  { id: 'b-45', name: 'Santa Cândida', fee: 8.00 },
-  { id: 'b-46', name: 'Santa Catarina', fee: 7.00 },
-  { id: 'b-47', name: 'Santa Clara', fee: 8.00 },
-  { id: 'b-48', name: 'Santa Helena', fee: 6.00 },
-  { id: 'b-49', name: 'Santa Maria', fee: 8.00 },
-  { id: 'b-50', name: 'Santa Mônica', fee: 9.00 },
-  { id: 'b-51', name: 'Santa Rita', fee: 7.00 },
-  { id: 'b-52', name: 'Santo Antônio', fee: 8.00 },
-  { id: 'b-53', name: 'São Cristóvão', fee: 7.00 },
-  { id: 'b-54', name: 'São Francisco', fee: 8.00 },
-  { id: 'b-55', name: 'São Luiz', fee: 8.00 },
-  { id: 'b-56', name: 'São Miguel', fee: 9.00 },
-  { id: 'b-57', name: 'São Paulo', fee: 8.00 },
-  { id: 'b-58', name: 'São Pedro', fee: 8.00 },
-  { id: 'b-59', name: 'São Sebastião', fee: 8.00 },
-  { id: 'b-60', name: 'Triângulo', fee: 9.00 },
-  { id: 'b-61', name: 'Tributo', fee: 9.00 },
-  { id: 'b-62', name: 'Universitário', fee: 7.00 },
-  { id: 'b-63', name: 'Várzea', fee: 8.00 },
-  { id: 'b-64', name: 'Vila Comboni', fee: 8.00 },
-  { id: 'b-65', name: 'Vila Maria', fee: 7.00 },
-  { id: 'b-66', name: 'Vila Mariza', fee: 9.00 },
-  { id: 'b-67', name: 'Vila Nova', fee: 7.00 },
-  { id: 'b-68', name: 'Vista Alegre', fee: 9.00 }
-];
 
 // Helper functions for printing formatted pizzas and other items
 const getFlavorsFromItem = (item: OrderItem) => {
@@ -194,6 +117,8 @@ interface SaaSOrdersPanelProps {
   onUpdateCustomers: (updated: Customer[]) => void;
   preSelectedCustomer: Customer | null;
   onClearPreSelectedCustomer: () => void;
+  bairros: Bairro[];
+  onUpdateBairros: (updated: Bairro[] | ((prev: Bairro[]) => Bairro[])) => void;
 }
 
 // Custom visual representing: 1. Pizza normal, 2. Pizza doce (com chocolate e morango), 3. Litro de refrigerante
@@ -304,28 +229,16 @@ export default function SaaSOrdersPanel({
   customers,
   onUpdateCustomers,
   preSelectedCustomer,
-  onClearPreSelectedCustomer
+  onClearPreSelectedCustomer,
+  bairros,
+  onUpdateBairros
 }: SaaSOrdersPanelProps) {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
 
-  // Persisted neighborhoods
-  const [bairros, setBairros] = useState<Bairro[]>(() => {
-    const saved = localStorage.getItem('saas_bairros');
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {
-        console.error(e);
-      }
-    }
-    return initialBairros;
-  });
-
   const saveBairrosToStorage = (updatedList: Bairro[]) => {
-    setBairros(updatedList);
-    localStorage.setItem('saas_bairros', JSON.stringify(updatedList));
+    onUpdateBairros(updatedList);
   };
 
   const saveCustomersToStorage = (updatedList: Customer[]) => {
@@ -371,8 +284,29 @@ export default function SaaSOrdersPanel({
   // Safe and Robust Print Trigger function
   const printReceiptDirectly = (orderToPrint: Order, type: 'Cozinha' | 'Completo', width: '80mm' | '58mm') => {
     try {
+      // Helper to highlight important observations (e.g., "sem cebola") with high impact text
+      const highlightNotesText = (txt: string) => {
+        if (!txt) return '';
+        let upper = txt.toUpperCase();
+        // Highlight terms like "SEM ...", "NÃO ...", "RETIRAR ...", "ALÉRGICO ..."
+        upper = upper.replace(/\b(SEM\s+[A-Z0-9\s]+?)(?=\b|$|,|\.)/gi, '⚠️ 👉 $1 👈 ⚠️');
+        upper = upper.replace(/\b(NÃO\s+[A-Z0-9\s]+?)(?=\b|$|,|\.)/gi, '⚠️ 👉 $1 👈 ⚠️');
+        upper = upper.replace(/\b(TIRAR\s+[A-Z0-9\s]+?)(?=\b|$|,|\.)/gi, '⚠️ 👉 $1 👈 ⚠️');
+        upper = upper.replace(/\b(RETIRAR\s+[A-Z0-9\s]+?)(?=\b|$|,|\.)/gi, '⚠️ 👉 $1 👈 ⚠️');
+        return upper;
+      };
+
+      const baseFontSize = width === '58mm' ? '14px' : '16.5px';
+      const headingFontSize = width === '58mm' ? '16px' : '19px';
+      const itemTitleFontSize = width === '58mm' ? '15px' : '17.5px';
+      const subItemFontSize = width === '58mm' ? '13px' : '15px';
+      const ingredientsFontSize = width === '58mm' ? '12.5px' : '14px';
+      const totalFontSize = width === '58mm' ? '15px' : '18px';
+      const grandTotalFontSize = width === '58mm' ? '20px' : '23px';
+      const noteFontSize = width === '58mm' ? '15px' : '18px';
+
       // First try opening a specialized clean printing window
-      const widthPx = width === '58mm' ? '240px' : '320px';
+      const widthPx = width === '58mm' ? '280px' : '360px';
       const printWindow = window.open('', '_blank', 'width=500,height=700,status=no,toolbar=no,menubar=no');
       
       if (printWindow) {
@@ -389,49 +323,53 @@ export default function SaaSOrdersPanel({
             const flavorsText = parsed.flavors.map(fl => {
               const ingredients = getIngredientsForFlavor(fl);
               return `
-                <div style="margin: 2px 0 4px 6px; line-height: 1.2;">
-                  • <span style="font-weight: bold;">${comboFlavorMarker}${fl.toUpperCase()}</span>
-                  ${ingredients ? `<div style="font-size: 8.5px; color: #444; font-style: italic; padding-left: 10px; line-height: 1.1;">(${ingredients.toLowerCase()})</div>` : ''}
+                <div style="margin: 4px 0 6px 8px; line-height: 1.3;">
+                  • <span style="font-weight: bold; font-size: ${subItemFontSize};">• ${comboFlavorMarker}${fl.toUpperCase()}</span>
+                  ${ingredients ? `<div style="font-size: ${ingredientsFontSize}; color: #000; font-weight: bold; padding-left: 12px; line-height: 1.25; text-transform: uppercase;">(${ingredients.toUpperCase()})</div>` : ''}
                 </div>
               `;
             }).join('');
 
             const sweetFlavorHtml = `
-              <div style="font-weight: bold; font-size: 11px; margin-top: 6px; border-left: 3px solid #000; padding-left: 6px; background: #f0f0f0; text-transform: uppercase;">
+              <div style="font-weight: bold; font-size: ${subItemFontSize}; margin-top: 8px; border: 2px solid #000; padding: 4px 6px; text-transform: uppercase; background: #fff;">
                 🍓 BROTINHO: ${parsed.sweetFlavor.toUpperCase()}
               </div>
             `;
 
             const drinkHtml = isCocaDrink
               ? `
-                <div style="font-weight: bold; font-size: 11px; margin-top: 4px; border-left: 3px solid #000; padding-left: 6px; background: #f0f0f0; text-transform: uppercase;">
+                <div style="font-weight: bold; font-size: ${subItemFontSize}; margin-top: 6px; border: 2px solid #000; padding: 4px 6px; text-transform: uppercase; background: #fff;">
                   🥤 BEBIDA: ${parsed.drink.toUpperCase()}
                 </div>
               `
               : `
-                <div style="font-weight: bold; font-size: 11px; margin-top: 4px; padding-left: 6px; text-transform: uppercase;">
+                <div style="font-weight: bold; font-size: ${subItemFontSize}; margin-top: 6px; padding-left: 8px; text-transform: uppercase;">
                   • BEBIDA: ${parsed.drink.toUpperCase()}
                 </div>
               `;
 
             const extraHtml = item.cocaDifference && item.cocaDifference > 0
-              ? `<div style="font-size: 10px; font-weight: bold; padding-left: 6px; margin-top: 2px;">• DIFERENÇA COCA-COLA: + R$ ${item.cocaDifference.toFixed(2)}</div>`
+              ? `<div style="font-size: ${subItemFontSize}; font-weight: bold; padding-left: 8px; margin-top: 4px; text-transform: uppercase;">• DIFERENÇA COCA-COLA: + R$ ${item.cocaDifference.toFixed(2)}</div>`
+              : '';
+
+            const itemObsHtml = item.notes
+              ? `<div style="font-size: ${noteFontSize}; font-weight: bold; margin-top: 8px; border: 3px double #000; padding: 6px; background: #fff; text-transform: uppercase; line-height: 1.3;">⚠️ ${highlightNotesText(item.notes)}</div>`
               : '';
 
             return `
-              <div style="border-bottom: 1px dashed #888; padding: 4px 0; margin-bottom: 4px;">
-                <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 11px;">
-                  <span>${item.quantity}x ${parsed.comboTitle.toUpperCase()} - ${parsed.pizzaSize.toUpperCase()}</span>
-                  ${type === 'Completo' ? `<span>R$ ${(item.price * item.quantity).toFixed(2)}</span>` : ''}
+              <div style="border-bottom: 2px dashed #000; padding: 8px 0; margin-bottom: 8px;">
+                <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: ${itemTitleFontSize};">
+                  <span><strong>${item.quantity}x ${parsed.comboTitle.toUpperCase()} - ${parsed.pizzaSize.toUpperCase()}</strong></span>
+                  ${type === 'Completo' ? `<span><strong>R$ ${(item.price * item.quantity).toFixed(2)}</strong></span>` : ''}
                 </div>
-                <div style="font-size: 10px; color: #111; padding-left: 6px; margin: 3px 0;">
+                <div style="font-size: ${subItemFontSize}; color: #000; padding-left: 4px; margin: 4px 0;">
                   <strong style="text-transform: uppercase;">- ${comboFractionLabel}</strong>
                   ${flavorsText}
                 </div>
                 ${sweetFlavorHtml}
                 ${drinkHtml}
                 ${extraHtml}
-                ${item.notes ? `<div style="font-size: 10px; font-weight: bold; margin-top: 6px; border-left: 3px solid #000; padding-left: 6px; background: #f0f0f0;">OBS: ${item.notes.toUpperCase()}</div>` : ''}
+                ${itemObsHtml}
               </div>
             `;
           }
@@ -441,58 +379,62 @@ export default function SaaSOrdersPanel({
             : getFlavorsFromItem(item).map(name => ({ name, isSpecial: false, ingredients: getIngredientsForFlavor(name) }));
 
           const flavorsText = flavorsArray.length > 0
-            ? `<div style="font-size: 10px; color: #111; padding-left: 6px; margin: 3px 0;">
+            ? `<div style="font-size: ${subItemFontSize}; color: #000; padding-left: 4px; margin: 4px 0;">
                 <strong style="text-transform: uppercase;">Sabores:</strong>
                 ${flavorsArray.map(f => `
-                  <div style="margin: 2px 0 4px 6px; line-height: 1.2;">
-                    • <span style="font-weight: bold;">${f.name.toUpperCase()}</span>${f.isSpecial ? ' <span style="font-size: 8px; color: #555;">(ESPECIAL)</span>' : ''}
-                    ${f.ingredients ? `<div style="font-size: 8.5px; color: #444; font-style: italic; padding-left: 10px; line-height: 1.1;">(${f.ingredients.toLowerCase()})</div>` : ''}
+                  <div style="margin: 4px 0 6px 8px; line-height: 1.3;">
+                    • <span style="font-weight: bold;">${f.name.toUpperCase()}</span>${f.isSpecial ? ' <strong>(ESPECIAL)</strong>' : ''}
+                    ${f.ingredients ? `<div style="font-size: ${ingredientsFontSize}; color: #000; font-weight: bold; padding-left: 12px; line-height: 1.25; text-transform: uppercase;">(${f.ingredients.toUpperCase()})</div>` : ''}
                   </div>
                 `).join('')}
                </div>`
             : '';
           const borderText = item.border
-            ? `<div style="font-size: 10px; color: #333; padding-left: 6px; margin: 2px 0;"><strong>Borda:</strong> ${item.border.name}</div>`
+            ? `<div style="font-size: ${subItemFontSize}; color: #000; padding-left: 4px; margin: 4px 0; font-weight: bold; text-transform: uppercase;"><strong>Borda:</strong> ${item.border.name.toUpperCase()}</div>`
             : '';
           
           // Render sweet flavor details if exist
           const comboDetailsHtml = item.productId && (item.productId.startsWith('p-113') || item.productId.startsWith('p-114') || item.productId.startsWith('p-115'))
-            ? `<div style="font-size: 9px; color: #444; padding-left: 8px; margin-top: 2px; font-style: italic; border-left: 1px solid #ccc;">
+            ? `<div style="font-size: ${subItemFontSize}; color: #000; padding-left: 8px; margin-top: 4px; font-weight: bold; border-left: 2px solid #000; text-transform: uppercase;">
                 • Pizza: ${flavorsText ? 'Principal Configurada' : 'Padrão'}
                </div>`
             : '';
 
+          const itemObsHtml = item.notes
+            ? `<div style="font-size: ${noteFontSize}; font-weight: bold; margin-top: 8px; border: 3px double #000; padding: 6px; background: #fff; text-transform: uppercase; line-height: 1.3;">⚠️ ${highlightNotesText(item.notes)}</div>`
+            : '';
+
           return `
-            <div style="border-bottom: 1px dashed #888; padding: 4px 0; margin-bottom: 4px;">
-              <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 11px;">
-                <span>${item.quantity}x ${item.name}</span>
-                ${type === 'Completo' ? `<span>R$ ${(item.price * item.quantity).toFixed(2)}</span>` : ''}
+            <div style="border-bottom: 2px dashed #000; padding: 8px 0; margin-bottom: 8px;">
+              <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: ${itemTitleFontSize};">
+                <span><strong>${item.quantity}x ${item.name.toUpperCase()}</strong></span>
+                ${type === 'Completo' ? `<span><strong>R$ ${(item.price * item.quantity).toFixed(2)}</strong></span>` : ''}
               </div>
               ${flavorsText}
               ${borderText}
               ${comboDetailsHtml}
-              ${item.notes ? `<div style="font-size: 9px; color: #555; padding-left: 6px; font-style: italic;">Obs: ${item.notes}</div>` : ''}
+              ${itemObsHtml}
             </div>
           `;
         }).join('');
 
         const totalSection = type === 'Completo' ? `
-          <div style="margin-top: 8px; border-top: 1px solid #000; padding-top: 6px; font-size: 11px; font-family: inherit;">
-            <div style="display: flex; justify-content: space-between; margin-bottom: 2px;">
+          <div style="margin-top: 10px; border-top: 2px solid #000; padding-top: 8px; font-size: ${totalFontSize}; font-family: inherit; font-weight: bold;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 3px;">
               <span>Subtotal:</span>
               <span>R$ ${orderToPrint.items.reduce((sum, item) => sum + item.price * item.quantity, 0).toFixed(2)}</span>
             </div>
             ${orderToPrint.deliveryFee > 0 ? `
-            <div style="display: flex; justify-content: space-between; margin-bottom: 2px;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 3px;">
               <span>Taxa de Entrega:</span>
               <span>R$ ${orderToPrint.deliveryFee.toFixed(2)}</span>
             </div>` : ''}
             ${orderToPrint.discount > 0 ? `
-            <div style="display: flex; justify-content: space-between; margin-bottom: 2px; color: #d00;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 3px; color: #000;">
               <span>Desconto:</span>
               <span>- R$ ${orderToPrint.discount.toFixed(2)}</span>
             </div>` : ''}
-            <div style="display: flex; justify-content: space-between; font-weight: 900; font-size: 14px; margin-top: 4px; border-top: 1px dashed #000; padding-top: 6px;">
+            <div style="display: flex; justify-content: space-between; font-weight: 900; font-size: ${grandTotalFontSize}; margin-top: 6px; border-top: 2px dashed #000; padding-top: 8px;">
               <span>TOTAL PEDIDO:</span>
               <span>R$ ${orderToPrint.total.toFixed(2)}</span>
             </div>
@@ -500,14 +442,18 @@ export default function SaaSOrdersPanel({
         ` : '';
 
         const notesHtml = orderToPrint.notes ? `
-          <div style="margin-top: 8px; border: 1.5px solid #000; padding: 6px; font-size: 10px; font-family: inherit;">
-            <strong>Observações do Pedido:</strong>
-            <div style="font-weight: bold; margin-top: 2px; text-transform: uppercase;">${orderToPrint.notes.toUpperCase()}</div>
+          <div style="margin-top: 12px; border: 4px solid #000; padding: 8px; font-size: ${noteFontSize}; font-family: inherit;">
+            <strong style="text-transform: uppercase;">⚠️ OBSERVADOS GERAIS DO PEDIDO:</strong>
+            <div style="font-weight: 900; margin-top: 6px; text-transform: uppercase; line-height: 1.35;">${highlightNotesText(orderToPrint.notes)}</div>
           </div>
         ` : '';
 
         const clientAddressHtml = orderToPrint.customerAddress ? `
-          <p style="margin: 2px 0;"><strong>Endereço:</strong> ${orderToPrint.customerAddress}, ${orderToPrint.customerBairro || 'N/I'}, ${orderToPrint.customerCity || 'Lages'}</p>
+          <div style="margin: 8px 0; padding: 6px; border: 2.5px solid #000; border-radius: 4px; background: #fff;">
+            <p style="margin: 0 0 4px 0; font-weight: bold; font-size: ${baseFontSize}; text-transform: uppercase;">📍 ENDEREÇO DE ENTREGA:</p>
+            <p style="margin: 2px 0; font-size: ${itemTitleFontSize}; font-weight: bold; text-transform: uppercase;">${orderToPrint.customerAddress}</p>
+            <p style="margin: 2px 0; font-size: ${baseFontSize}; font-weight: bold; text-transform: uppercase;">BAIRRO: ${orderToPrint.customerBairro || 'N/I'} • ${orderToPrint.customerCity || 'LAGES'}</p>
+          </div>
         ` : '';
 
         printWindow.document.write(`
@@ -523,21 +469,23 @@ export default function SaaSOrdersPanel({
                   padding: 10px;
                   background: #fff;
                   color: #000;
-                  font-size: 11px;
-                  line-height: 1.25;
+                  font-size: ${baseFontSize};
+                  line-height: 1.35;
+                  font-weight: bold; /* Bold default to ensure deep black on thermal printers */
                 }
                 h2 {
                   text-align: center;
-                  margin: 0 0 4px 0;
-                  font-size: 14px;
-                  font-weight: bold;
+                  margin: 0 0 6px 0;
+                  font-size: ${headingFontSize};
+                  font-weight: 900;
+                  text-transform: uppercase;
                 }
                 p {
-                  margin: 2px 0;
+                  margin: 3px 0;
                 }
                 .divider {
-                  border-top: 1px dashed #000;
-                  margin: 6px 0;
+                  border-top: 2px solid #000;
+                  margin: 8px 0;
                 }
                 .text-center {
                   text-align: center;
@@ -549,29 +497,30 @@ export default function SaaSOrdersPanel({
               </style>
             </head>
             <body>
-              <h2>RESENHA PIZZARIA</h2>
-              <p class="text-center" style="font-size: 9px; font-weight: bold; text-transform: uppercase; margin-bottom: 4px; letter-spacing: 0.5px;">
+              <h2>${currentTenantId === 'tenant-1' ? 'Resenha Pizzaria & Esfiharia' : 'Pizzaria Dona Carmem'}</h2>
+              <p class="text-center" style="font-size: ${baseFontSize}; font-weight: 900; text-transform: uppercase; margin-bottom: 6px; letter-spacing: 0.5px;">
                 ${type === 'Cozinha' ? '🍳 TICKET DE COZINHA (PRODUÇÃO) 🍳' : '💵 CUPOM DE PEDIDO (BALCÃO) 💵'}
               </p>
               <div class="divider"></div>
-              <p><strong>Pedido:</strong> ${orderToPrint.orderNumber}</p>
-              <p><strong>Data/Hora:</strong> ${new Date(orderToPrint.createdAt).toLocaleString('pt-BR')}</p>
-              <p><strong>Serviço:</strong> ${orderToPrint.type === 'Delivery' ? '🏍️ ENTREGA' : orderToPrint.type === 'Retirada' ? '🥡 RETIRADA' : '🏪 BALCÃO'}</p>
-              <p><strong>Cliente:</strong> ${orderToPrint.customerName}</p>
+              <p><strong>CUPOM Nº:</strong> <span style="font-size: ${itemTitleFontSize}; font-weight: 900;">${orderToPrint.orderNumber}</span></p>
+              <p><strong>DATA/HORA:</strong> {new Date(orderToPrint.createdAt).toLocaleString('pt-BR')}</p>
+              <p><strong>SERVIÇO:</strong> <span style="text-transform: uppercase;">${orderToPrint.type === 'Delivery' ? '🏍️ ENTREGA' : orderToPrint.type === 'Retirada' ? '🥡 RETIRADA' : '🏪 BALCÃO'}</span></p>
+              <p><strong>CLIENTE:</strong> <span style="text-transform: uppercase;">${orderToPrint.customerName}</span></p>
               ${type === 'Completo' ? `
-                <p><strong>Telefone:</strong> ${orderToPrint.customerPhone}</p>
+                <p><strong>FONE:</strong> ${orderToPrint.customerPhone}</p>
                 ${clientAddressHtml}
-                <p><strong>Pagamento:</strong> ${orderToPrint.paymentMethod || 'Pix'}</p>
+                <p><strong>PAGAMENTO:</strong> <span style="text-transform: uppercase;">${orderToPrint.paymentMethod || 'Pix'}</span></p>
               ` : ''}
               <div class="divider"></div>
-              <div style="font-weight: bold; margin-bottom: 4px;">ITENS DO PEDIDO:</div>
+              <div style="font-weight: 900; font-size: ${baseFontSize}; margin-bottom: 6px; text-transform: uppercase; text-align: center;">🛒 ITENS DO PEDIDO:</div>
+              <div class="divider"></div>
               ${itemsHtml}
               ${totalSection}
               ${notesHtml}
               <div class="divider"></div>
-              <div class="text-center" style="font-size: 9px; margin-top: 12px; color: #444;">
+              <div class="text-center" style="font-size: ${baseFontSize}; margin-top: 14px; font-weight: bold;">
                 <p>Obrigado pela preferência!</p>
-                <p style="font-size: 8px; color: #777;">Sistemas Resenha</p>
+                <p style="font-size: ${subItemFontSize}; font-weight: bold; margin-top: 4px;">Sistemas Resenha</p>
               </div>
               <script>
                 window.onload = function() {
@@ -603,6 +552,19 @@ export default function SaaSOrdersPanel({
 
   // POS (Point of Sale) State
   const [isPOSActive, setIsPOSActive] = useState(false);
+  const [posEditingOrderId, setPosEditingOrderId] = useState<string | null>(null);
+
+  const resetPOSState = () => {
+    setPosCart([]);
+    setSelectedPOSCustomer(null);
+    setSelectedPOSAddress(null);
+    setIsAddingPOSAddress(false);
+    setPosDiscount(0);
+    setPosNotes('');
+    setPosEditingOrderId(null);
+    setIsPOSActive(false);
+  };
+
   const [posStep, setPosStep] = useState<'customer' | 'items'>('customer');
   const [selectedPOSCustomer, setSelectedPOSCustomer] = useState<Customer | null>(null);
   const [posSearchCustomer, setPosSearchCustomer] = useState('');
@@ -615,6 +577,7 @@ export default function SaaSOrdersPanel({
   const [newCustNumber, setNewCustNumber] = useState('');
   const [newCustComplement, setNewCustComplement] = useState('');
   const [newCustBairro, setNewCustBairro] = useState('');
+  const [showNewCustBairroDropdown, setShowNewCustBairroDropdown] = useState(false);
   const [newCustCity, setNewCustCity] = useState('Lages');
 
   // POS Cart & Order details
@@ -636,6 +599,7 @@ export default function SaaSOrdersPanel({
   const [posPizzaFlavors, setPosPizzaFlavors] = useState<PizzaSapor[]>([]);
   const [posPizzaBorder, setPosPizzaBorder] = useState<PizzaBorder | undefined>(undefined);
   const [posPizzaNotes, setPosPizzaNotes] = useState('');
+  const [posPizzaAddedIngredients, setPosPizzaAddedIngredients] = useState<PizzaIngredient[][]>([[], [], [], []]);
 
   // Sabor selection search query
   const [flavorSearchQueries, setFlavorSearchQueries] = useState<string[]>(['', '', '', '']);
@@ -656,6 +620,7 @@ export default function SaaSOrdersPanel({
   const [posNewAddrNumber, setPosNewAddrNumber] = useState('');
   const [posNewAddrComplement, setPosNewAddrComplement] = useState('');
   const [posNewAddrBairro, setPosNewAddrBairro] = useState('');
+  const [showPosBairroDropdown, setShowPosBairroDropdown] = useState(false);
   const [posNewAddrCity, setPosNewAddrCity] = useState('Lages');
   const [posNewAddrCep, setPosNewAddrCep] = useState('');
   const [posNewAddrReference, setPosNewAddrReference] = useState('');
@@ -838,7 +803,12 @@ export default function SaaSOrdersPanel({
   const handleSetPosType = (type: OrderType) => {
     setPosType(type);
     if (type === 'Delivery') {
-      if (selectedPOSCustomer && selectedPOSCustomer.bairro) {
+      if (selectedPOSAddress && selectedPOSAddress.deliveryFee !== undefined) {
+        setPosDeliveryFee(selectedPOSAddress.deliveryFee);
+      } else if (selectedPOSAddress && selectedPOSAddress.bairro) {
+        const match = bairros.find(b => b.name.toLowerCase() === selectedPOSAddress.bairro.toLowerCase());
+        setPosDeliveryFee(match ? match.fee : 8.0);
+      } else if (selectedPOSCustomer && selectedPOSCustomer.bairro) {
         const match = bairros.find(b => b.name.toLowerCase() === selectedPOSCustomer.bairro.toLowerCase());
         setPosDeliveryFee(match ? match.fee : 8.0);
       } else {
@@ -858,9 +828,6 @@ export default function SaaSOrdersPanel({
 
     const subtotal = posCart.reduce((sum, item) => sum + item.price * item.quantity, 0);
     const finalTotal = Math.max(0, subtotal + posDeliveryFee - posDiscount);
-
-    const nextNum = orders.length + 101;
-    const orderNumber = `#POS-${nextNum}`;
 
     const custName = selectedPOSCustomer ? selectedPOSCustomer.name : 'Consumidor Geral';
     const custPhone = selectedPOSCustomer ? selectedPOSCustomer.phone : '(00) 00000-0000';
@@ -890,37 +857,98 @@ export default function SaaSOrdersPanel({
       return selectedPOSAddress ? selectedPOSAddress.city : (selectedPOSCustomer ? selectedPOSCustomer.city || 'Lages' : 'Lages');
     };
 
-    const newOrder: Order = {
-      id: `ord-pos-${Date.now()}`,
-      tenantId: currentTenantId,
-      orderNumber,
-      status: 'Confirmado', // directly confirmed for counter
-      type: posType,
-      customerName: custName,
-      customerPhone: custPhone,
-      customerAddress: getFormattedAddress(),
-      customerBairro: getBairro(),
-      customerCity: getCity(),
-      items: posCart,
-      deliveryFee: posDeliveryFee,
-      discount: posDiscount,
-      total: finalTotal,
-      paymentMethod: posPayment,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      notes: posNotes,
-      history: [
-        {
-          id: `h-pos-${Date.now()}`,
-          timestamp: new Date().toISOString(),
-          action: 'Pedido Criado',
-          user: 'Atendente de Balcão',
-          details: `Iniciado diretamente na Frente de Caixa. Pagamento via ${posPayment}.`
-        }
-      ]
-    };
+    let orderNumLabel = '';
 
-    onUpdateOrders([newOrder, ...orders]);
+    if (posEditingOrderId) {
+      // EDITING MODE - update existing order and build audit logs
+      const originalOrder = orders.find(o => o.id === posEditingOrderId);
+      if (originalOrder) {
+        orderNumLabel = originalOrder.orderNumber;
+        const changeLogs: string[] = [];
+        if (posType !== originalOrder.type) {
+          changeLogs.push(`Tipo alterado de ${originalOrder.type} para ${posType}`);
+        }
+        if (custName !== originalOrder.customerName) {
+          changeLogs.push(`Nome do cliente corrigido para: ${custName}`);
+        }
+        if (posDiscount !== originalOrder.discount) {
+          changeLogs.push(`Desconto ajustado de R$ ${originalOrder.discount} para R$ ${posDiscount}`);
+        }
+        if (posCart.length !== originalOrder.items.length) {
+          changeLogs.push(`Itens alterados de ${originalOrder.items.length} para ${posCart.length}`);
+        }
+
+        const logDetails = changeLogs.length > 0 ? changeLogs.join(', ') : 'Reajuste geral de itens ou observação via Frente de Caixa';
+
+        const updatedOrder: Order = {
+          ...originalOrder,
+          type: posType,
+          customerName: custName,
+          customerPhone: custPhone,
+          customerAddress: getFormattedAddress(),
+          customerBairro: getBairro(),
+          customerCity: getCity(),
+          items: posCart.map(item => ({ ...item })),
+          deliveryFee: posDeliveryFee,
+          discount: posDiscount,
+          total: finalTotal,
+          notes: posNotes,
+          paymentMethod: posPayment,
+          updatedAt: new Date().toISOString(),
+          history: [
+            ...originalOrder.history,
+            {
+              id: `h-pos-edit-${Date.now()}`,
+              timestamp: new Date().toISOString(),
+              action: 'Pedido Editado via PDV',
+              user: 'Atendente de Balcão',
+              details: logDetails,
+            },
+          ],
+        };
+
+        onUpdateOrders(orders.map((o) => (o.id === posEditingOrderId ? updatedOrder : o)));
+        setSelectedOrder(updatedOrder);
+      }
+    } else {
+      // NEW ORDER MODE
+      const nextNum = orders.length + 101;
+      const orderNumber = `#POS-${nextNum}`;
+      orderNumLabel = orderNumber;
+
+      const newOrder: Order = {
+        id: `ord-pos-${Date.now()}`,
+        tenantId: currentTenantId,
+        orderNumber,
+        status: 'Confirmado', // directly confirmed for counter
+        type: posType,
+        customerName: custName,
+        customerPhone: custPhone,
+        customerAddress: getFormattedAddress(),
+        customerBairro: getBairro(),
+        customerCity: getCity(),
+        items: posCart.map(item => ({ ...item })),
+        deliveryFee: posDeliveryFee,
+        discount: posDiscount,
+        total: finalTotal,
+        paymentMethod: posPayment,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        notes: posNotes,
+        history: [
+          {
+            id: `h-pos-${Date.now()}`,
+            timestamp: new Date().toISOString(),
+            action: 'Pedido Criado',
+            user: 'Atendente de Balcão',
+            details: `Iniciado diretamente na Frente de Caixa. Pagamento via ${posPayment}.`
+          }
+        ]
+      };
+
+      onUpdateOrders([newOrder, ...orders]);
+      setLastFinalizedOrder(newOrder);
+    }
 
     // Play notification sound
     try {
@@ -945,21 +973,14 @@ export default function SaaSOrdersPanel({
 
     // Trigger visual notification
     if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
-      new Notification(`🔔 Novo Pedido Balcão (${orderNumber})`, {
-        body: `Cliente: ${newOrder.customerName} • Total: R$ ${finalTotal.toFixed(2)}`,
+      new Notification(`🔔 Pedido ${posEditingOrderId ? 'Editado' : 'Criado'} (${orderNumLabel})`, {
+        body: `Cliente: ${custName} • Total: R$ ${finalTotal.toFixed(2)}`,
         icon: 'https://cdn-icons-png.flaticon.com/512/3595/3595454.png',
       });
     }
 
     // Reset fields
-    setPosCart([]);
-    setSelectedPOSCustomer(null);
-    setSelectedPOSAddress(null);
-    setIsAddingPOSAddress(false);
-    setPosDiscount(0);
-    setPosNotes('');
-    setIsPOSActive(false);
-    setLastFinalizedOrder(newOrder);
+    resetPOSState();
   };
 
   // Filter orders by Tenant
@@ -998,17 +1019,97 @@ export default function SaaSOrdersPanel({
   const [editItems, setEditItems] = useState<OrderItem[]>([]);
   const [editDiscount, setEditDiscount] = useState<number>(0);
   const [editNotes, setEditNotes] = useState('');
+  const [editCategory, setEditCategory] = useState<string>('Pizzas');
 
   // Pizza builder state inside editor
   const [selectedSize, setSelectedSize] = useState<PizzaSize>(pizzaSizes[4]); // default to Gigante 45cm
   const [selectedFraction, setSelectedFraction] = useState<1 | 2 | 3 | 4>(1);
   const [selectedFlavors, setSelectedFlavors] = useState<PizzaSapor[]>([pizzaFlavors[0]]);
   const [selectedBorder, setSelectedBorder] = useState<PizzaBorder | undefined>(pizzaBorders[0]);
+  const [selectedAddedIngredients, setSelectedAddedIngredients] = useState<PizzaIngredient[][]>([[], [], [], []]);
+  const [editFlavorSearchQueries, setEditFlavorSearchQueries] = useState<string[]>(['', '', '', '']);
+
+  // Combo builder state inside editor
+  const [editComboProduct, setEditComboProduct] = useState<Product | null>(null);
+  const [editComboFlavors, setEditComboFlavors] = useState<PizzaSapor[]>([]);
+  const [editComboSweetFlavor, setEditComboSweetFlavor] = useState<PizzaSapor | null>(null);
+  const [editComboDrink, setEditComboDrink] = useState<Product | null>(null);
+  const [editComboPrice, setEditComboPrice] = useState<number>(0);
+  const [editComboCocaDiff, setEditComboCocaDiff] = useState<number | ''>('');
+  const [editComboSearchQuerySweet, setEditComboSearchQuerySweet] = useState('');
+  const [editComboSearchQuerySavory, setEditComboSearchQuerySavory] = useState('');
 
   // Handle open editor
   const startEditing = (order: Order) => {
     setSelectedOrder(order);
-    setIsEditing(true);
+    setIsPOSActive(true);
+    setPosStep('items'); // Load directly into Step 2: Product selection
+    setPosEditingOrderId(order.id);
+
+    // Load order properties into POS states
+    setPosCart(order.items.map(item => ({ ...item })));
+    setPosType(order.type);
+    setPosDiscount(order.discount || 0);
+    setPosNotes(order.notes || '');
+    setPosDeliveryFee(order.deliveryFee || 0);
+    setPosPayment(order.paymentMethod || 'Pix');
+
+    // Preload customer and address
+    const matchedCust = customers.find(c => c.phone === order.customerPhone || c.name === order.customerName);
+    if (matchedCust) {
+      setSelectedPOSCustomer(matchedCust);
+      if (order.type === 'Delivery') {
+        const matchedAddr = (matchedCust.addresses || []).find(a => 
+          a.street === order.customerAddress?.split(',')[0]?.trim() || a.street === order.customerAddress
+        );
+        if (matchedAddr) {
+          setSelectedPOSAddress(matchedAddr);
+        } else if (order.customerAddress) {
+          const fbAddr: CustomerAddress = {
+            id: `addr-fb-${Date.now()}`,
+            name: 'Endereço do Pedido',
+            street: order.customerAddress.split(',')[0] || order.customerAddress,
+            number: order.customerAddress.split(',')[1]?.split('-')[0]?.trim() || '',
+            bairro: order.customerBairro || 'Centro',
+            city: order.customerCity || 'Lages'
+          };
+          setSelectedPOSAddress(fbAddr);
+        } else {
+          setSelectedPOSAddress(null);
+        }
+      } else {
+        setSelectedPOSAddress(null);
+      }
+    } else {
+      // Create temporary representation of customer to preserve details in POS
+      const tempCustomer: Customer = {
+        id: `cust-temp-${Date.now()}`,
+        tenantId: currentTenantId,
+        name: order.customerName || 'Consumidor Geral',
+        phone: order.customerPhone || '(00) 00000-0000',
+        address: order.customerAddress,
+        bairro: order.customerBairro,
+        city: order.customerCity || 'Lages',
+        createdAt: new Date().toISOString(),
+        addresses: order.customerAddress ? [{
+          id: `addr-fb-${Date.now()}`,
+          name: 'Endereço do Pedido',
+          street: order.customerAddress.split(',')[0] || order.customerAddress,
+          number: order.customerAddress.split(',')[1]?.split('-')[0]?.trim() || '',
+          bairro: order.customerBairro || 'Centro',
+          city: order.customerCity || 'Lages'
+        }] : []
+      };
+      setSelectedPOSCustomer(tempCustomer);
+      if (order.type === 'Delivery' && tempCustomer.addresses && tempCustomer.addresses.length > 0) {
+        setSelectedPOSAddress(tempCustomer.addresses[0]);
+      } else {
+        setSelectedPOSAddress(null);
+      }
+    }
+
+    // Keep side editor variables synchronized
+    setIsEditing(false);
     setEditType(order.type);
     setEditCustomerName(order.customerName);
     setEditCustomerPhone(order.customerPhone);
@@ -1018,10 +1119,58 @@ export default function SaaSOrdersPanel({
     setEditItems([...order.items]);
     setEditDiscount(order.discount);
     setEditNotes(order.notes || '');
+    setEditCategory(currentTenantId === 'tenant-1' ? 'Pizzas' : 'Hamburguer');
+    setEditComboProduct(null);
+    setSelectedAddedIngredients([[], [], [], []]);
+    setEditFlavorSearchQueries(['', '', '', '']);
+  };
+
+  // Auto-calculate edit combo price including special flavor surcharges
+  React.useEffect(() => {
+    if (editComboProduct) {
+      const basePrice = editComboProduct.price;
+      const flavorsSurcharge = editComboFlavors.reduce((sum, f) => sum + (f && f.isSpecial ? f.additionalPrice : 0), 0);
+      const sweetSurcharge = editComboSweetFlavor && editComboSweetFlavor.isSpecial ? editComboSweetFlavor.additionalPrice : 0;
+      setEditComboPrice(basePrice + flavorsSurcharge + sweetSurcharge);
+    }
+  }, [editComboProduct, editComboFlavors, editComboSweetFlavor]);
+
+  const addCustomComboToEdit = () => {
+    if (!editComboProduct) return;
+    const mainFlavors = editComboFlavors.filter(Boolean);
+    if (mainFlavors.length === 0 || !editComboSweetFlavor || !editComboDrink) {
+      alert('Por favor, preencha todos os campos do combo (Sabores, Doce e Bebida).');
+      return;
+    }
+    const isCoca = editComboDrink.name.toLowerCase().includes('coca');
+    let cocaDiff = 0;
+    if (isCoca) {
+      cocaDiff = Number(editComboCocaDiff) || 0;
+    }
+    const flavorsNames = mainFlavors.map(f => f.name).join(' / ');
+    const name = `${editComboProduct.name} (Pizzas: ${flavorsNames} • Broto Doce: ${editComboSweetFlavor.name} • Refri: ${editComboDrink.name})`;
+
+    const newComboItem: OrderItem = {
+      id: `oi-cmb-${Date.now()}`,
+      productId: editComboProduct.id,
+      name,
+      quantity: 1,
+      price: editComboPrice + cocaDiff,
+      isCombo: true,
+    };
+
+    setEditItems([...editItems, newComboItem]);
+    setEditComboProduct(null);
   };
 
   // Calculate customized pizza price
-  const calculatePizzaPrice = (fraction: number, flavors: PizzaSapor[], border?: PizzaBorder, size = selectedSize): number => {
+  const calculatePizzaPrice = (
+    fraction: number,
+    flavors: PizzaSapor[],
+    border?: PizzaBorder,
+    size = selectedSize,
+    addedIngredients: PizzaIngredient[][] = []
+  ): number => {
     const basePrice = size ? size.basePrice : 49.90; // Standard base price for custom pizzas
     let premiumAdicional = 0;
 
@@ -1029,10 +1178,16 @@ export default function SaaSOrdersPanel({
     const maxFlavors = size ? size.maxFlavors : 4;
     const multiplier = maxFlavors / fraction;
 
-    flavors.forEach((flv) => {
-      if (flv.isSpecial) {
+    flavors.forEach((flv, idx) => {
+      if (flv && flv.isSpecial) {
         // rule: add premium addition with multiplier based on fraction and pizza maxFlavors
         premiumAdicional += (flv.additionalPrice * multiplier);
+      }
+      // Proportional pricing for added ingredients on this flavor slot
+      if (addedIngredients && addedIngredients[idx]) {
+        addedIngredients[idx].forEach((ing) => {
+          premiumAdicional += (ing.price * multiplier);
+        });
       }
     });
 
@@ -1075,7 +1230,7 @@ export default function SaaSOrdersPanel({
       finalFlavors.push(pizzaFlavors[0]);
     }
 
-    const price = calculatePizzaPrice(selectedFraction, finalFlavors, selectedBorder, selectedSize);
+    const price = calculatePizzaPrice(selectedFraction, finalFlavors, selectedBorder, selectedSize, selectedAddedIngredients);
     
     // Set descriptive name
     let fractionLabel = 'Inteira';
@@ -1083,7 +1238,14 @@ export default function SaaSOrdersPanel({
     if (selectedFraction === 3) fractionLabel = '3 Sabores';
     if (selectedFraction === 4) fractionLabel = '4 Sabores';
 
-    const flavorNames = finalFlavors.map((f) => f.name).join(' / ');
+    const flavorNames = finalFlavors.map((f, idx) => {
+      const slotIngs = selectedAddedIngredients[idx];
+      if (slotIngs && slotIngs.length > 0) {
+        const ingList = slotIngs.map(i => i.name).join(', ');
+        return `${f.name} [+ ${ingList}]`;
+      }
+      return f.name;
+    }).join(' / ');
     const name = `Pizza ${selectedSize.name} (${fractionLabel}: ${flavorNames})`;
 
     const newPizzaItem: OrderItem = {
@@ -1097,9 +1259,11 @@ export default function SaaSOrdersPanel({
       flavors: finalFlavors,
       border: selectedBorder,
       size: selectedSize,
+      addedIngredients: [...selectedAddedIngredients],
     };
 
     setEditItems([...editItems, newPizzaItem]);
+    setSelectedAddedIngredients([[], [], [], []]); // Reset additions
   };
 
   // Save changes and generate logs
@@ -1165,13 +1329,17 @@ export default function SaaSOrdersPanel({
         {/* Red Header Bar mimicking the uploaded screenshot */}
         <div className="bg-red-750 text-white rounded-xl px-4 py-3.5 flex items-center justify-between shadow-sm">
           <button
-            onClick={() => setIsPOSActive(false)}
+            onClick={resetPOSState}
             className="flex items-center gap-1.5 bg-red-800 hover:bg-red-900 text-white text-xs font-black px-3.5 py-2 rounded-lg transition-all cursor-pointer border border-red-600/30"
           >
             <ArrowRight className="w-3.5 h-3.5 rotate-180" />
             Voltar para Vendas
           </button>
-          <span className="font-display font-black text-sm tracking-wide uppercase">FRENTE DE CAIXA / VENDA BALCÃO</span>
+          <span className="font-display font-black text-sm tracking-wide uppercase">
+            {posEditingOrderId 
+              ? `⚡ EDITANDO PEDIDO ${orders.find(o => o.id === posEditingOrderId)?.orderNumber || ''}` 
+              : 'FRENTE DE CAIXA / VENDA BALCÃO'}
+          </span>
           <div className="flex items-center gap-2 text-xs font-mono">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
             <span className="font-bold text-red-100">Operador: Fábia</span>
@@ -1374,18 +1542,62 @@ export default function SaaSOrdersPanel({
                               className="w-full bg-stone-50 border border-stone-200 rounded px-2.5 py-1.5 text-stone-900 focus:outline-none"
                             />
                           </div>
-                          <div className="sm:col-span-2">
+                           <div className="sm:col-span-2 relative">
                             <label className="block text-[9px] text-stone-500 font-bold uppercase mb-0.5">Bairro *</label>
-                            <select
+                            <input
+                              type="text"
+                              required
+                              placeholder="Digite para buscar..."
                               value={posNewAddrBairro}
-                              onChange={(e) => setPosNewAddrBairro(e.target.value)}
-                              className="w-full bg-stone-50 border border-stone-200 rounded px-2 py-1.5 text-stone-900 focus:outline-none font-bold text-xs"
-                            >
-                              <option value="">Escolha...</option>
-                              {bairros.map((b) => (
-                                <option key={b.id} value={b.name}>{b.name}</option>
-                              ))}
-                            </select>
+                              onChange={(e) => {
+                                setPosNewAddrBairro(e.target.value);
+                                setShowPosBairroDropdown(true);
+                                // Automatically try to match delivery fee if they select or type a valid bairro name
+                                const matched = bairros.find(b => b.name.toLowerCase() === e.target.value.toLowerCase().trim());
+                                if (matched) {
+                                  setPosNewAddrDeliveryFee(matched.fee);
+                                }
+                              }}
+                              onFocus={() => setShowPosBairroDropdown(true)}
+                              className="w-full bg-stone-50 border border-stone-200 rounded px-2.5 py-1.5 text-stone-900 focus:outline-none font-bold text-xs"
+                            />
+                            {showPosBairroDropdown && (
+                              <>
+                                <div 
+                                  className="fixed inset-0 z-40" 
+                                  onClick={() => setShowPosBairroDropdown(false)} 
+                                />
+                                <div className="absolute left-0 right-0 mt-1 max-h-48 overflow-y-auto bg-white border border-stone-200 rounded-lg shadow-xl z-50 text-xs">
+                                  {bairros
+                                    .filter(b => b.name.toLowerCase().includes(posNewAddrBairro.toLowerCase()))
+                                    .sort((a, b) => {
+                                      const aStartsWith = a.name.toLowerCase().startsWith(posNewAddrBairro.toLowerCase());
+                                      const bStartsWith = b.name.toLowerCase().startsWith(posNewAddrBairro.toLowerCase());
+                                      if (aStartsWith && !bStartsWith) return -1;
+                                      if (!aStartsWith && bStartsWith) return 1;
+                                      return a.name.localeCompare(b.name);
+                                    })
+                                    .map((b) => (
+                                      <button
+                                        key={b.id}
+                                        type="button"
+                                        onClick={() => {
+                                          setPosNewAddrBairro(b.name);
+                                          setPosNewAddrDeliveryFee(b.fee);
+                                          setShowPosBairroDropdown(false);
+                                        }}
+                                        className="w-full text-left px-3 py-2 hover:bg-orange-50 hover:text-orange-950 border-b border-stone-100 last:border-b-0 font-bold transition-all flex items-center justify-between"
+                                      >
+                                        <span>{b.name}</span>
+                                        <span className="text-[10px] text-stone-400 font-mono">Taxa: R$ {b.fee.toFixed(2)}</span>
+                                      </button>
+                                    ))}
+                                  {bairros.filter(b => b.name.toLowerCase().includes(posNewAddrBairro.toLowerCase())).length === 0 && (
+                                    <div className="p-3 text-stone-400 text-center font-medium">Bairro não cadastrado. Por favor selecione um bairro existente de Lages.</div>
+                                  )}
+                                </div>
+                              </>
+                            )}
                           </div>
                           <div className="sm:col-span-2">
                             <label className="block text-[9px] text-stone-500 font-bold uppercase mb-0.5">Cidade *</label>
@@ -1422,6 +1634,11 @@ export default function SaaSOrdersPanel({
                             onClick={() => {
                               if (!posNewAddrName || !posNewAddrStreet || !posNewAddrNumber || !posNewAddrBairro) {
                                 alert('⚠️ Identificação, Rua, Número e Bairro são obrigatórios!');
+                                return;
+                              }
+                              const matchedBairro = bairros.find(b => b.name.toLowerCase() === posNewAddrBairro.trim().toLowerCase());
+                              if (!matchedBairro) {
+                                alert(`⚠️ O bairro "${posNewAddrBairro}" não está cadastrado! Escolha um bairro válido na lista.`);
                                 return;
                               }
                               const newAddressId = `addr-${Date.now()}`;
@@ -1556,9 +1773,9 @@ export default function SaaSOrdersPanel({
               </div>
             )}
 
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 pt-2">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pt-2">
               {/* Left Side: Search Existing Customer */}
-              <div className="space-y-4 border-r border-stone-100 pr-0 xl:pr-6">
+              <div className="space-y-4 border-r border-stone-100 pr-0 lg:pr-6">
                 <div className="space-y-1">
                   <h5 className="font-display font-bold text-stone-900 text-xs uppercase tracking-wider">
                     🔍 Buscar Cliente Cadastrado
@@ -1745,22 +1962,55 @@ export default function SaaSOrdersPanel({
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                    <div>
-                      <label className="block text-stone-600 font-bold mb-1 font-semibold">Bairro de Lages SC (Dropdown)</label>
-                      <select
+                    <div className="relative">
+                      <label className="block text-stone-600 font-bold mb-1 font-semibold">Bairro de Lages SC (Autocompletar)</label>
+                      <input
+                        type="text"
+                        placeholder="Digite para buscar (ex: Gethal)..."
                         value={newCustBairro}
                         onChange={(e) => {
                           setNewCustBairro(e.target.value);
+                          setShowNewCustBairroDropdown(true);
                         }}
-                        className="w-full bg-stone-50 border border-stone-200 rounded-lg px-2.5 py-2 text-stone-950 focus:outline-none focus:border-red-500 font-bold"
-                      >
-                        <option value="">Escolha o Bairro...</option>
-                        {bairros.map((b) => (
-                          <option key={b.id} value={b.name}>
-                            {b.name} (Taxa: R$ {b.fee.toFixed(2)})
-                          </option>
-                        ))}
-                      </select>
+                        onFocus={() => setShowNewCustBairroDropdown(true)}
+                        className="w-full bg-stone-50 border border-stone-200 rounded-lg px-3 py-2 text-stone-950 focus:outline-none focus:border-red-500 font-bold"
+                      />
+                      {showNewCustBairroDropdown && (
+                        <>
+                          <div 
+                            className="fixed inset-0 z-40" 
+                            onClick={() => setShowNewCustBairroDropdown(false)} 
+                          />
+                          <div className="absolute left-0 right-0 mt-1 max-h-48 overflow-y-auto bg-white border border-stone-200 rounded-lg shadow-xl z-50 text-xs">
+                            {bairros
+                              .filter(b => b.name.toLowerCase().includes(newCustBairro.toLowerCase()))
+                              .sort((a, b) => {
+                                const aStartsWith = a.name.toLowerCase().startsWith(newCustBairro.toLowerCase());
+                                const bStartsWith = b.name.toLowerCase().startsWith(newCustBairro.toLowerCase());
+                                if (aStartsWith && !bStartsWith) return -1;
+                                if (!aStartsWith && bStartsWith) return 1;
+                                return a.name.localeCompare(b.name);
+                              })
+                              .map((b) => (
+                                <button
+                                  key={b.id}
+                                  type="button"
+                                  onClick={() => {
+                                    setNewCustBairro(b.name);
+                                    setShowNewCustBairroDropdown(false);
+                                  }}
+                                  className="w-full text-left px-3 py-2 hover:bg-red-50 hover:text-red-950 border-b border-stone-100 last:border-b-0 font-bold transition-all flex items-center justify-between"
+                                >
+                                  <span>{b.name}</span>
+                                  <span className="text-[10px] text-stone-400 font-mono">Taxa: R$ {b.fee.toFixed(2)}</span>
+                                </button>
+                              ))}
+                            {bairros.filter(b => b.name.toLowerCase().includes(newCustBairro.toLowerCase())).length === 0 && (
+                              <div className="p-3 text-stone-400 text-center font-medium">Bairro não cadastrado. Selecione um bairro existente de Lages.</div>
+                            )}
+                          </div>
+                        </>
+                      )}
                     </div>
                     <div>
                       <label className="block text-stone-600 font-bold mb-1 font-semibold">Cidade</label>
@@ -1781,6 +2031,13 @@ export default function SaaSOrdersPanel({
                         alert("⚠️ Por favor, preencha o Nome e Telefone para cadastrar!");
                         return;
                       }
+                      
+                      const matchedBairro = bairros.find(b => b.name.toLowerCase() === newCustBairro.trim().toLowerCase());
+                      if (newCustBairro && !matchedBairro) {
+                        alert(`⚠️ O bairro "${newCustBairro}" não está cadastrado! Escolha um bairro válido na lista.`);
+                        return;
+                      }
+
                       const addr = newCustStreet.trim()
                         ? `${newCustStreet.trim()}, ${newCustNumber.trim()}${newCustComplement.trim() ? ' - ' + newCustComplement.trim() : ''}`
                         : '';
@@ -1833,10 +2090,10 @@ export default function SaaSOrdersPanel({
           </div>
         ) : (
           /* STEP 2: PRODUCTS GRID AND CART SELECTION */
-          <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             
             {/* Left Columns (Col Span 2): Customer Banner & Products Select */}
-            <div className="xl:col-span-2 col-span-1 space-y-5">
+            <div className="lg:col-span-2 col-span-1 space-y-5">
               
               {/* Customer Banner in Step 2 */}
               <div className="bg-emerald-50 border border-emerald-200 p-3.5 rounded-xl flex items-center justify-between gap-3 text-xs shadow-3xs">
@@ -1883,13 +2140,9 @@ export default function SaaSOrdersPanel({
                           : 'bg-white text-stone-700 hover:bg-stone-50 border border-stone-200 font-bold'
                       }`}
                     >
-                      {cat === 'Combos' ? (
-                        <img src="/LOGO_COMBOS.png" alt="Combo" className="w-5 h-5 object-contain" referrerPolicy="no-referrer" />
-                      ) : (
-                        <span className="text-sm">
-                          {cat === 'Pizzas' ? '🍕' : cat === 'Bebidas' ? '🥤' : '🥟'}
-                        </span>
-                      )}
+                      <span className="text-sm">
+                        {cat === 'Pizzas' ? '🍕' : cat === 'Combos' ? '🎁' : cat === 'Bebidas' ? '🥤' : '🥟'}
+                      </span>
                       <span>{cat}</span>
                     </button>
                   );
@@ -1978,6 +2231,9 @@ export default function SaaSOrdersPanel({
                           f.name.toLowerCase().includes(searchQuery.trim().toLowerCase())
                         );
 
+                        const currentSlotIngredients = posPizzaAddedIngredients[slotIdx] || [];
+                        const sortedIngredients = [...pizzaIngredients].sort((a, b) => a.name.localeCompare(b.name));
+
                         return (
                           <div key={slotIdx} className="space-y-1 bg-white p-2.5 rounded-lg border border-stone-200">
                             <div className="flex justify-between items-center">
@@ -2021,11 +2277,21 @@ export default function SaaSOrdersPanel({
                                   })}
                                 </optgroup>
                               )}
-                              {filteredSweet.length > 0 && (
-                                <optgroup label="Pizzas Doces">
-                                  {filteredSweet.map(f => (
-                                    <option key={f.id} value={f.id}>{f.name}</option>
+                              {filteredSweet.filter(f => !f.isSpecial).length > 0 && (
+                                <optgroup label="Doces Tradicionais">
+                                  {filteredSweet.filter(f => !f.isSpecial).map(f => (
+                                    <option key={f.id} value={f.id}>{f.name} (Tradicional)</option>
                                   ))}
+                                </optgroup>
+                              )}
+                              {filteredSweet.filter(f => f.isSpecial).length > 0 && (
+                                <optgroup label="Doces Especiais (Mais caras)">
+                                  {filteredSweet.filter(f => f.isSpecial).map(f => {
+                                    const optionPremium = f.additionalPrice * multiplier;
+                                    return (
+                                      <option key={f.id} value={f.id}>{f.name} (+R$ {optionPremium.toFixed(2)})</option>
+                                    );
+                                  })}
                                 </optgroup>
                               )}
                             </select>
@@ -2043,6 +2309,55 @@ export default function SaaSOrdersPanel({
                                 }}
                                 className="flex-1 bg-stone-50/50 border border-stone-200/80 rounded px-2 py-0.5 text-[10px] text-stone-600 font-medium focus:outline-none focus:border-red-400 placeholder:text-stone-400 h-6"
                               />
+                            </div>
+
+                            {/* Added Ingredients List for this slot */}
+                            {currentSlotIngredients.length > 0 && (
+                              <div className="flex flex-wrap gap-1.5 mt-2 pt-1 border-t border-stone-100">
+                                {currentSlotIngredients.map((ing) => (
+                                  <span key={ing.id} className="bg-emerald-50 text-emerald-800 border border-emerald-200 rounded px-1.5 py-0.5 text-[9px] font-bold flex items-center gap-1">
+                                    <span>+ {ing.name} (+R$ {(ing.price * multiplier).toFixed(2)})</span>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const copy = [...posPizzaAddedIngredients];
+                                        copy[slotIdx] = (copy[slotIdx] || []).filter(i => i.id !== ing.id);
+                                        setPosPizzaAddedIngredients(copy);
+                                      }}
+                                      className="text-emerald-600 hover:text-emerald-800 font-extrabold cursor-pointer ml-0.5"
+                                    >
+                                      ×
+                                    </button>
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+
+                            {/* Dropdown to add more ingredients */}
+                            <div className="mt-2 pt-1 border-t border-stone-100 flex items-center gap-2">
+                              <span className="text-[9px] font-black text-stone-400 uppercase tracking-wider shrink-0">Adicionar Adicional:</span>
+                              <select
+                                value=""
+                                onChange={(e) => {
+                                  const ing = pizzaIngredients.find(i => i.id === e.target.value);
+                                  if (ing) {
+                                    const copy = [...posPizzaAddedIngredients];
+                                    const currentSlotList = copy[slotIdx] || [];
+                                    if (!currentSlotList.some(i => i.id === ing.id)) {
+                                      copy[slotIdx] = [...currentSlotList, ing];
+                                      setPosPizzaAddedIngredients(copy);
+                                    }
+                                  }
+                                }}
+                                className="flex-1 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded px-2 py-0.5 text-[10px] text-emerald-800 font-bold focus:outline-none focus:border-emerald-500 h-6 cursor-pointer"
+                              >
+                                <option value="" className="text-stone-500 font-bold">Escolha um ingrediente...</option>
+                                {sortedIngredients.map((ing) => (
+                                  <option key={ing.id} value={ing.id} className="text-stone-800 font-medium">
+                                    {ing.name} (+R$ {(ing.price * multiplier).toFixed(2)})
+                                  </option>
+                                ))}
+                              </select>
                             </div>
                           </div>
                         );
@@ -2087,13 +2402,16 @@ export default function SaaSOrdersPanel({
                     <div>
                       <p className="text-stone-400 font-mono uppercase text-[9px] font-bold">Preço Calculado</p>
                       <span className="text-lg font-black text-stone-900 font-mono">
-                        R$ {calculatePizzaPrice(posPizzaFraction, posPizzaFlavors.slice(0, posPizzaFraction), posPizzaBorder, posPizzaSize).toFixed(2)}
+                        R$ {calculatePizzaPrice(posPizzaFraction, posPizzaFlavors.slice(0, posPizzaFraction), posPizzaBorder, posPizzaSize, posPizzaAddedIngredients).toFixed(2)}
                       </span>
                     </div>
                     <div className="flex gap-2">
                       <button
                         type="button"
-                        onClick={() => setPosPizzaSize(null)}
+                        onClick={() => {
+                          setPosPizzaSize(null);
+                          setPosPizzaAddedIngredients([[], [], [], []]);
+                        }}
                         className="px-4 py-2 bg-stone-100 hover:bg-stone-200 text-stone-600 rounded-lg font-bold cursor-pointer"
                       >
                         Cancelar
@@ -2105,14 +2423,21 @@ export default function SaaSOrdersPanel({
                           while (finalFlavors.length < posPizzaFraction) {
                             finalFlavors.push(pizzaFlavors[0]);
                           }
-                          const price = calculatePizzaPrice(posPizzaFraction, finalFlavors, posPizzaBorder, posPizzaSize);
+                          const price = calculatePizzaPrice(posPizzaFraction, finalFlavors, posPizzaBorder, posPizzaSize, posPizzaAddedIngredients);
                           
                           let fractionLabel = 'Inteira';
                           if (posPizzaFraction === 2) fractionLabel = '2 Sabores';
                           if (posPizzaFraction === 3) fractionLabel = '3 Sabores';
                           if (posPizzaFraction === 4) fractionLabel = '4 Sabores';
 
-                          const flavorNames = finalFlavors.map(f => f.name).join(' / ');
+                          const flavorNames = finalFlavors.map((f, idx) => {
+                            const slotIngs = posPizzaAddedIngredients[idx];
+                            if (slotIngs && slotIngs.length > 0) {
+                              const ingList = slotIngs.map(i => i.name).join(', ');
+                              return `${f.name} [+ ${ingList}]`;
+                            }
+                            return f.name;
+                          }).join(' / ');
                           const name = `Pizza ${posPizzaSize.name} (${fractionLabel}: ${flavorNames})`;
 
                           const newPizzaItem: OrderItem = {
@@ -2127,11 +2452,13 @@ export default function SaaSOrdersPanel({
                             border: posPizzaBorder,
                             size: posPizzaSize,
                             notes: posPizzaNotes,
+                            addedIngredients: [...posPizzaAddedIngredients],
                           };
 
                           setPosCart([...posCart, newPizzaItem]);
                           setPosPizzaSize(null);
                           setPosPizzaNotes('');
+                          setPosPizzaAddedIngredients([[], [], [], []]);
                         }}
                         className="px-4 py-2 bg-red-700 hover:bg-red-600 text-white rounded-lg font-black shadow-3xs cursor-pointer flex items-center gap-1"
                       >
@@ -2368,14 +2695,35 @@ export default function SaaSOrdersPanel({
                         className="w-full bg-white border border-stone-200 rounded px-1.5 py-1 text-[11px] font-bold text-stone-900 focus:outline-none"
                       >
                         <option value="">Selecione o sabor doce...</option>
-                        {pizzaFlavors
-                          .filter(f => f.id.startsWith('f-res-') && parseInt(f.id.replace('f-res-', '')) >= 44)
-                          .filter(f => f.name.toLowerCase().includes(comboSearchQuerySweet.trim().toLowerCase()))
-                          .map(f => (
-                            <option key={f.id} value={f.id}>
-                              {f.name} {f.isSpecial ? `(+ R$ ${f.additionalPrice.toFixed(2)} - Especial)` : ''}
-                            </option>
-                          ))}
+                        {(() => {
+                          const filteredSweet = pizzaFlavors
+                            .filter(f => f.id.startsWith('f-res-') && parseInt(f.id.replace('f-res-', '')) >= 44)
+                            .filter(f => f.name.toLowerCase().includes(comboSearchQuerySweet.trim().toLowerCase()));
+                          const tradDoces = filteredSweet.filter(f => !f.isSpecial);
+                          const espDoces = filteredSweet.filter(f => f.isSpecial);
+                          return (
+                            <>
+                              {tradDoces.length > 0 && (
+                                <optgroup label="Doces Tradicionais">
+                                  {tradDoces.map(f => (
+                                    <option key={f.id} value={f.id}>
+                                      {f.name} (Tradicional)
+                                    </option>
+                                  ))}
+                                </optgroup>
+                              )}
+                              {espDoces.length > 0 && (
+                                <optgroup label="Doces Especiais (Mais caras)">
+                                  {espDoces.map(f => (
+                                    <option key={f.id} value={f.id}>
+                                      {f.name} (+ R$ {f.additionalPrice.toFixed(2)})
+                                    </option>
+                                  ))}
+                                </optgroup>
+                              )}
+                            </>
+                          );
+                        })()}
                       </select>
 
                       <div className="flex items-center gap-1.5">
@@ -2950,10 +3298,8 @@ export default function SaaSOrdersPanel({
         <button
           type="button"
           onClick={() => {
+            resetPOSState();
             setIsPOSActive(true);
-            setPosCart([]);
-            setSelectedPOSCustomer(null);
-            setShowNewCustomerForm(false);
           }}
           className="flex items-center gap-2 bg-orange-600 hover:bg-orange-500 text-white font-black text-xs px-4.5 py-2.5 rounded-xl transition-all shadow-md hover:shadow-lg cursor-pointer transform hover:-translate-y-0.5"
         >
@@ -2962,9 +3308,9 @@ export default function SaaSOrdersPanel({
         </button>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Column: Orders List */}
-        <div className="xl:col-span-2 bg-white border border-stone-200 rounded-2xl p-5 space-y-4 shadow-3xs">
+        <div className="lg:col-span-2 bg-white border border-stone-200 rounded-2xl p-5 space-y-4 shadow-3xs">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-stone-100 pb-3">
             <h4 className="font-display font-bold text-stone-900 text-sm">Lista de Pedidos Ativos</h4>
             <span className="text-xs text-stone-500 font-mono font-bold text-stone-600">
@@ -3301,34 +3647,58 @@ export default function SaaSOrdersPanel({
                   </div>
 
                   {/* ADD NEW PRODUCT SELECTOR */}
-                  <div className="space-y-2 bg-stone-50 p-3 rounded-xl border border-stone-200">
-                    <p className="text-[10px] text-stone-500 font-bold uppercase">Incluir Itens do Cardápio</p>
-                    <div className="flex flex-wrap gap-1 max-h-[110px] overflow-y-auto">
-                      {products
-                        .filter(
-                          (p) =>
-                            (currentTenantId === 'tenant-1' && p.id.startsWith('p-1')) ||
-                            (currentTenantId === 'tenant-2' && p.id.startsWith('p-2'))
-                        )
-                        .map((p) => (
-                          <button
-                            key={p.id}
-                            type="button"
-                            onClick={() => addProductToEditItems(p)}
-                            className="bg-white hover:bg-orange-50 text-[10px] text-stone-700 px-2 py-1 rounded border border-stone-200 flex items-center gap-1 transition-all cursor-pointer font-bold"
-                          >
-                            <Plus className="w-2.5 h-2.5 text-orange-600" />
-                            {p.name}
-                          </button>
-                        ))}
+                  <div className="space-y-3 bg-stone-50 p-3.5 rounded-xl border border-stone-200">
+                    <div className="flex items-center justify-between">
+                      <p className="text-[10px] text-stone-500 font-bold uppercase tracking-wider">Incluir Itens no Pedido</p>
+                      {editComboProduct && (
+                        <button
+                          type="button"
+                          onClick={() => setEditComboProduct(null)}
+                          className="text-orange-600 hover:text-orange-700 text-[10px] font-black flex items-center gap-1 cursor-pointer"
+                        >
+                          ← Alterar Combo
+                        </button>
+                      )}
                     </div>
 
-                    {/* Specialized custom pizza inclusion helper for Pizzarias */}
-                    {currentTenantId === 'tenant-1' && (
-                      <div className="border-t border-stone-200/60 pt-2.5 mt-2 space-y-2">
-                        <p className="text-[10px] text-orange-700 font-bold uppercase flex items-center gap-1">
-                          <Plus className="w-3 h-3" />
-                          Montador de Pizza customizada
+                    {/* Category navigation pills inside editor */}
+                    {!editComboProduct && (
+                      <div className="flex gap-1 bg-stone-200 p-1 rounded-lg border border-stone-300">
+                        {(currentTenantId === 'tenant-1'
+                          ? ['Pizzas', 'Combos', 'Bebidas', 'Calzones']
+                          : ['Hamburguer', 'Bebidas', 'Acompanhamento']
+                        ).map((cat) => {
+                          const isActive = editCategory === cat;
+                          return (
+                            <button
+                              key={cat}
+                              type="button"
+                              onClick={() => {
+                                setEditCategory(cat);
+                              }}
+                              className={`flex-1 py-1 text-[9px] font-black rounded transition-all flex items-center justify-center gap-1 cursor-pointer uppercase ${
+                                isActive
+                                  ? 'bg-orange-600 text-white shadow-3xs'
+                                  : 'bg-white text-stone-700 hover:bg-stone-100 border border-stone-200 font-bold'
+                              }`}
+                            >
+                              <span>
+                                {cat === 'Pizzas' ? '🍕' : cat === 'Combos' ? '🎁' : cat === 'Bebidas' ? '🥤' : cat === 'Calzones' ? '🥟' : cat === 'Hamburguer' ? '🍔' : '🍟'}
+                              </span>
+                              <span>{cat}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {/* Rendering active category inside editor */}
+
+                    {/* 1. Pizzas category (Custom Pizza Builder) */}
+                    {editCategory === 'Pizzas' && currentTenantId === 'tenant-1' && (
+                      <div className="space-y-2.5 pt-1">
+                        <p className="text-[9px] text-orange-700 font-bold uppercase flex items-center gap-1">
+                          🍕 Montador de Pizza customizada
                         </p>
                         
                         {/* Size Selection */}
@@ -3345,7 +3715,7 @@ export default function SaaSOrdersPanel({
                                 }
                               }
                             }}
-                            className="w-full bg-white text-[10px] border border-stone-200 text-stone-700 rounded px-1.5 py-1 focus:outline-none focus:border-orange-500"
+                            className="w-full bg-white text-[10px] border border-stone-200 text-stone-700 rounded px-1.5 py-1 focus:outline-none focus:border-orange-500 font-bold"
                           >
                             {pizzaSizes.map((sz) => (
                               <option key={sz.id} value={sz.id}>
@@ -3382,31 +3752,149 @@ export default function SaaSOrdersPanel({
                           </div>
                         </div>
 
-                        {/* Flavor dropdown simulators */}
-                        <div className="space-y-0.5">
+                        {/* Flavor dropdown simulators with search and additions */}
+                        <div className="space-y-1">
                           <label className="block text-[8px] text-stone-400 font-bold uppercase">Sabores da Pizza</label>
-                          <div className="grid grid-cols-2 gap-1.5">
-                            {Array.from({ length: selectedFraction }).map((_, i) => (
-                              <select
-                                key={i}
-                                value={selectedFlavors[i]?.id || ''}
-                                onChange={(e) => {
-                                  const flv = pizzaFlavors.find((f) => f.id === e.target.value);
-                                  if (flv) {
-                                    const copy = [...selectedFlavors];
-                                    copy[i] = flv;
-                                    setSelectedFlavors(copy);
-                                  }
-                                }}
-                                className="bg-white text-[10px] border border-stone-200 text-stone-700 rounded px-1.5 py-1 focus:outline-none focus:border-orange-500"
-                              >
-                                {pizzaFlavors.map((f) => (
-                                  <option key={f.id} value={f.id}>
-                                    {f.name} {f.isSpecial ? `(+R$ ${f.additionalPrice})` : ''}
-                                  </option>
-                                ))}
-                              </select>
-                            ))}
+                          <div className="space-y-2">
+                            {Array.from({ length: selectedFraction }).map((_, i) => {
+                              const currentFlavor = selectedFlavors[i] || pizzaFlavors[0];
+                              const multiplier = selectedSize.maxFlavors / selectedFraction;
+                              const currentFlavorPremium = currentFlavor.additionalPrice * multiplier;
+                              const searchQuery = editFlavorSearchQueries[i] || '';
+
+                              const filteredSavory = savoryFlavorsList.filter(f => 
+                                f.name.toLowerCase().includes(searchQuery.trim().toLowerCase())
+                              );
+                              const filteredSweet = sweetFlavorsList.filter(f => 
+                                f.name.toLowerCase().includes(searchQuery.trim().toLowerCase())
+                              );
+
+                              const currentSlotIngredients = selectedAddedIngredients[i] || [];
+                              const sortedIngredients = [...pizzaIngredients].sort((a, b) => a.name.localeCompare(b.name));
+
+                              return (
+                                <div key={i} className="bg-white p-2 border border-stone-200 rounded-lg space-y-1">
+                                  <div className="flex justify-between items-center">
+                                    <span className="font-bold text-stone-700 text-[10px]">Sabor {i + 1}:</span>
+                                    {currentFlavor.isSpecial && (
+                                      <span className="bg-orange-100 text-orange-800 text-[8px] font-bold px-1.5 py-0.5 rounded border border-orange-200">
+                                        Sabor Especial (+R$ {currentFlavorPremium.toFixed(2)})
+                                      </span>
+                                    )}
+                                  </div>
+                                  <select
+                                    value={currentFlavor.id}
+                                    onChange={(e) => {
+                                      const flv = pizzaFlavors.find((f) => f.id === e.target.value);
+                                      if (flv) {
+                                        const copy = [...selectedFlavors];
+                                        copy[i] = flv;
+                                        setSelectedFlavors(copy);
+                                      }
+                                    }}
+                                    className="w-full bg-stone-50 text-[10px] border border-stone-200 text-stone-700 rounded px-1.5 py-1 focus:outline-none focus:border-orange-500 font-bold"
+                                  >
+                                    <option value="">Selecione o sabor...</option>
+                                    {filteredSavory.filter(f => !f.isSpecial).length > 0 && (
+                                      <optgroup label="Salgadas Tradicionais">
+                                        {filteredSavory.filter(f => !f.isSpecial).map(f => (
+                                          <option key={f.id} value={f.id}>{f.name} (Tradicional)</option>
+                                        ))}
+                                      </optgroup>
+                                    )}
+                                    {filteredSavory.filter(f => f.isSpecial).length > 0 && (
+                                      <optgroup label="Salgadas Especiais">
+                                        {filteredSavory.filter(f => f.isSpecial).map(f => (
+                                          <option key={f.id} value={f.id}>
+                                            {f.name} (+ R$ {(f.additionalPrice * multiplier).toFixed(2)})
+                                          </option>
+                                        ))}
+                                      </optgroup>
+                                    )}
+                                    {filteredSweet.filter(f => !f.isSpecial).length > 0 && (
+                                      <optgroup label="Doces Tradicionais">
+                                        {filteredSweet.filter(f => !f.isSpecial).map(f => (
+                                          <option key={f.id} value={f.id}>{f.name} (Tradicional)</option>
+                                        ))}
+                                      </optgroup>
+                                    )}
+                                    {filteredSweet.filter(f => f.isSpecial).length > 0 && (
+                                      <optgroup label="Doces Especiais">
+                                        {filteredSweet.filter(f => f.isSpecial).map(f => (
+                                          <option key={f.id} value={f.id}>
+                                            {f.name} (+ R$ {(f.additionalPrice * multiplier).toFixed(2)})
+                                          </option>
+                                        ))}
+                                      </optgroup>
+                                    )}
+                                  </select>
+
+                                  <div className="flex items-center gap-1.5 mt-1">
+                                    <span className="text-[8px] font-bold text-stone-400 uppercase tracking-wider shrink-0">Filtrar:</span>
+                                    <input
+                                      type="text"
+                                      placeholder="Filtrar sabores..."
+                                      value={searchQuery}
+                                      onChange={(e) => {
+                                        const copy = [...editFlavorSearchQueries];
+                                        copy[i] = e.target.value;
+                                        setEditFlavorSearchQueries(copy);
+                                      }}
+                                      className="flex-1 bg-stone-50/50 border border-stone-200/80 rounded px-1.5 py-0.5 text-[9px] text-stone-600 font-medium focus:outline-none focus:border-red-400 placeholder:text-stone-400 h-5"
+                                    />
+                                  </div>
+
+                                  {/* Added ingredients list for this editor slot */}
+                                  {currentSlotIngredients.length > 0 && (
+                                    <div className="flex flex-wrap gap-1 mt-1 pt-1 border-t border-stone-100">
+                                      {currentSlotIngredients.map((ing) => (
+                                        <span key={ing.id} className="bg-emerald-50 text-emerald-800 border border-emerald-200 rounded px-1.5 py-0.5 text-[8px] font-bold flex items-center gap-1">
+                                          <span>+ {ing.name} (+R$ {(ing.price * multiplier).toFixed(2)})</span>
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              const copy = [...selectedAddedIngredients];
+                                              copy[i] = (copy[i] || []).filter(item => item.id !== ing.id);
+                                              setSelectedAddedIngredients(copy);
+                                            }}
+                                            className="text-emerald-600 hover:text-emerald-800 font-extrabold cursor-pointer ml-0.5"
+                                          >
+                                            ×
+                                          </button>
+                                        </span>
+                                      ))}
+                                    </div>
+                                  )}
+
+                                  {/* Dropdown to add ingredients in this editor slot */}
+                                  <div className="mt-1 pt-1 border-t border-stone-100 flex items-center gap-1.5">
+                                    <span className="text-[8px] font-black text-stone-400 uppercase tracking-wider shrink-0">Adicionar Adicional:</span>
+                                    <select
+                                      value=""
+                                      onChange={(e) => {
+                                        const ing = pizzaIngredients.find(item => item.id === e.target.value);
+                                        if (ing) {
+                                          const copy = [...selectedAddedIngredients];
+                                          const currentSlotList = copy[i] || [];
+                                          if (!currentSlotList.some(item => item.id === ing.id)) {
+                                            copy[i] = [...currentSlotList, ing];
+                                            setSelectedAddedIngredients(copy);
+                                          }
+                                        }
+                                      }}
+                                      className="flex-1 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded px-1.5 py-0.5 text-[9px] text-emerald-800 font-bold focus:outline-none focus:border-emerald-500 h-5 cursor-pointer"
+                                    >
+                                      <option value="" className="text-stone-500 font-bold">Escolha um ingrediente...</option>
+                                      {sortedIngredients.map((ing) => (
+                                        <option key={ing.id} value={ing.id} className="text-stone-800 font-medium">
+                                          {ing.name} (+R$ {(ing.price * multiplier).toFixed(2)})
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </div>
+                                </div>
+                              );
+                            })}
                           </div>
                         </div>
 
@@ -3418,7 +3906,7 @@ export default function SaaSOrdersPanel({
                               const b = pizzaBorders.find((border) => border.id === e.target.value);
                               setSelectedBorder(b);
                             }}
-                            className="w-full bg-white text-[10px] border border-stone-200 text-stone-700 rounded px-1.5 py-1 focus:outline-none focus:border-orange-500"
+                            className="w-full bg-white text-[10px] border border-stone-200 text-stone-700 rounded px-1.5 py-1 focus:outline-none focus:border-orange-500 font-bold"
                           >
                             <option value="">Sem Borda</option>
                             {pizzaBorders.map((b) => (
@@ -3433,8 +3921,196 @@ export default function SaaSOrdersPanel({
                             onClick={addCustomPizzaToEdit}
                             className="bg-orange-600 hover:bg-orange-500 text-white font-bold text-[10px] px-2.5 py-1 rounded shrink-0 transition-all shadow-3xs cursor-pointer"
                           >
-                            Incluir Pizza (R$ {calculatePizzaPrice(selectedFraction, selectedFlavors.slice(0, selectedFraction), selectedBorder, selectedSize).toFixed(2)})
+                            Incluir Pizza (R$ {calculatePizzaPrice(selectedFraction, selectedFlavors.slice(0, selectedFraction), selectedBorder, selectedSize, selectedAddedIngredients).toFixed(2)})
                           </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 2. Combos category */}
+                    {editCategory === 'Combos' && (
+                      <div className="space-y-3 pt-1">
+                        {!editComboProduct ? (
+                          <div className="space-y-2">
+                            <p className="text-[9px] text-orange-700 font-bold uppercase">🎁 Selecione um Combo para Configurar:</p>
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                              {products
+                                .filter(p => p.category === 'Combo' && p.id.startsWith('p-1'))
+                                .map((combo) => (
+                                  <div
+                                    key={combo.id}
+                                    onClick={() => {
+                                      setEditComboProduct(combo);
+                                      setEditComboFlavors([pizzaFlavors[0], pizzaFlavors[1]]);
+                                      setEditComboSweetFlavor(pizzaFlavors.find(f => f.id === 'f-res-45') || null);
+                                      const firstDrink = products.find(p => p.category === 'Bebida' && p.id.startsWith('p-1') && !p.name.toLowerCase().includes('coca')) || null;
+                                      setEditComboDrink(firstDrink);
+                                      setEditComboPrice(combo.price);
+                                      setEditComboCocaDiff('');
+                                    }}
+                                    className="bg-white hover:bg-orange-50 border border-stone-200 hover:border-orange-300 p-2 rounded-lg cursor-pointer transition-all flex flex-col justify-between"
+                                  >
+                                    <div>
+                                      <p className="text-[10px] font-black text-stone-900 leading-tight">{combo.name}</p>
+                                      <p className="text-[8px] text-stone-500 mt-0.5 line-clamp-2 leading-tight">{combo.description}</p>
+                                    </div>
+                                    <p className="text-[10px] font-black text-orange-700 mt-1 font-mono">R$ {combo.price.toFixed(2)}</p>
+                                  </div>
+                                ))}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="space-y-2.5 bg-orange-50/50 p-2.5 rounded-lg border border-orange-100 text-[11px]">
+                            <p className="font-bold text-orange-900 text-[10px] uppercase tracking-wide">⚙️ Configurando: {editComboProduct.name}</p>
+                            
+                            {/* Savory Pizza flavor selections */}
+                            <div className="space-y-1">
+                              <label className="block text-[8px] text-stone-400 font-bold uppercase">Sabores da Pizza Salgada:</label>
+                              {(() => {
+                                const maxFlavors = editComboProduct.id === 'p-113' ? 4 : (editComboProduct.id === 'p-114' || editComboProduct.id === 'p-115' ? 3 : 2);
+                                return (
+                                  <div className="grid grid-cols-2 gap-1.5">
+                                    {Array.from({ length: maxFlavors }).map((_, slotIdx) => (
+                                      <div key={slotIdx} className="space-y-0.5">
+                                        <select
+                                          value={editComboFlavors[slotIdx]?.id || ''}
+                                          onChange={(e) => {
+                                            const f = pizzaFlavors.find(fl => fl.id === e.target.value);
+                                            if (f) {
+                                              const copy = [...editComboFlavors];
+                                              copy[slotIdx] = f;
+                                              setEditComboFlavors(copy);
+                                            }
+                                          }}
+                                          className="w-full bg-white border border-stone-200 rounded px-1.5 py-0.5 text-[10px] font-bold text-stone-900 focus:outline-none focus:border-orange-500"
+                                        >
+                                          {savoryFlavorsList.map(f => (
+                                            <option key={f.id} value={f.id}>
+                                              {f.name} {f.isSpecial ? `(+ R$ ${f.additionalPrice.toFixed(2)})` : ''}
+                                            </option>
+                                          ))}
+                                        </select>
+                                      </div>
+                                    ))}
+                                  </div>
+                                );
+                              })()}
+                            </div>
+
+                            {/* Sweet Pizza flavor selection */}
+                            <div className="space-y-0.5">
+                              <label className="block text-[8px] text-stone-400 font-bold uppercase">Sabor da Pizza Doce Broto:</label>
+                              <select
+                                value={editComboSweetFlavor?.id || ''}
+                                onChange={(e) => {
+                                  const f = pizzaFlavors.find(fl => fl.id === e.target.value);
+                                  if (f) {
+                                    setEditComboSweetFlavor(f);
+                                  }
+                                }}
+                                className="w-full bg-white border border-stone-200 rounded px-1.5 py-0.5 text-[10px] font-bold text-stone-900 focus:outline-none focus:border-orange-500"
+                              >
+                                {sweetFlavorsList.map(f => (
+                                  <option key={f.id} value={f.id}>
+                                    {f.name} {f.isSpecial ? `(+ R$ ${f.additionalPrice.toFixed(2)})` : ''}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+
+                            {/* Drink selection */}
+                            <div className="grid grid-cols-2 gap-2 pt-1">
+                              <div>
+                                <label className="block text-[8px] text-stone-400 font-bold uppercase">Bebida Inclusa:</label>
+                                <select
+                                  value={editComboDrink?.id || ''}
+                                  onChange={(e) => {
+                                    const d = products.find(p => p.id === e.target.value);
+                                    if (d) {
+                                      setEditComboDrink(d);
+                                    }
+                                  }}
+                                  className="w-full bg-white border border-stone-200 rounded px-1.5 py-0.5 text-[10px] font-bold text-stone-900 focus:outline-none focus:border-orange-500"
+                                >
+                                  {products
+                                    .filter(p => p.category === 'Bebida' && p.id.startsWith('p-1'))
+                                    .map(d => (
+                                      <option key={d.id} value={d.id}>{d.name}</option>
+                                    ))}
+                                </select>
+                              </div>
+
+                              {editComboDrink && editComboDrink.name.toLowerCase().includes('coca') && (
+                                <div>
+                                  <label className="block text-[8px] text-stone-400 font-bold uppercase font-black text-red-600">Diferença Coca-Cola (R$):</label>
+                                  <input
+                                    type="number"
+                                    value={editComboCocaDiff}
+                                    onChange={(e) => {
+                                      const val = e.target.value === '' ? '' : parseFloat(e.target.value);
+                                      setEditComboCocaDiff(val as any);
+                                    }}
+                                    placeholder="Ex: 10"
+                                    className="w-full bg-white border border-stone-200 rounded px-1.5 py-0.5 text-[10px] font-bold text-stone-900 focus:outline-none focus:border-orange-500"
+                                  />
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Actions */}
+                            <div className="flex items-center justify-between border-t border-orange-100 pt-2 mt-1 gap-2">
+                              <span className="font-mono font-black text-red-700 text-xs">R$ {((editComboPrice || 0) + (editComboDrink?.name.toLowerCase().includes('coca') ? Number(editComboCocaDiff) || 0 : 0)).toFixed(2)}</span>
+                              <div className="flex gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() => setEditComboProduct(null)}
+                                  className="px-2 py-1 bg-stone-200 hover:bg-stone-300 rounded font-bold text-[9px] cursor-pointer"
+                                >
+                                  Voltar
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={addCustomComboToEdit}
+                                  className="px-2.5 py-1 bg-orange-600 hover:bg-orange-500 text-white rounded font-bold text-[9px] cursor-pointer"
+                                >
+                                  Incluir Combo
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* 3. Beverages / Calzones / Burgers / Side dishes category */}
+                    {editCategory !== 'Pizzas' && editCategory !== 'Combos' && (
+                      <div className="space-y-1.5 pt-1">
+                        <p className="text-[9px] text-orange-700 font-bold uppercase flex items-center gap-1">
+                          🛍️ Itens de {editCategory}:
+                        </p>
+                        <div className="flex flex-wrap gap-1 max-h-[130px] overflow-y-auto">
+                          {products
+                            .filter(
+                              (p) =>
+                                ((currentTenantId === 'tenant-1' && p.id.startsWith('p-1')) ||
+                                (currentTenantId === 'tenant-2' && p.id.startsWith('p-2'))) &&
+                                (p.category === editCategory || 
+                                 (editCategory === 'Bebidas' && p.category === 'Bebida') ||
+                                 (editCategory === 'Calzones' && p.category === 'Calzones') ||
+                                 (editCategory === 'Acompanhamento' && p.category === 'Acompanhamento')) &&
+                                p.id !== 'p-101' // exclude Pizza Customizada flat button
+                            )
+                            .map((p) => (
+                              <button
+                                key={p.id}
+                                type="button"
+                                onClick={() => addProductToEditItems(p)}
+                                className="bg-white hover:bg-orange-50 text-[10px] text-stone-700 px-2 py-1.5 rounded border border-stone-200 flex items-center gap-1 transition-all cursor-pointer font-black"
+                              >
+                                <Plus className="w-2.5 h-2.5 text-orange-600" />
+                                {p.name} - R$ {p.price.toFixed(2)}
+                              </button>
+                            ))}
                         </div>
                       </div>
                     )}
@@ -3484,45 +4160,56 @@ export default function SaaSOrdersPanel({
 
       {/* -------------------- PRINT MEDIA HIDDEN CONTENT -------------------- */}
       {printOrder && createPortal(
-        <div className={`print-area-wrapper hidden print:block ${printPaperWidth === '58mm' ? 'print-width-58' : ''}`} style={{ fontFamily: "'JetBrains Mono', monospace", color: '#000', lineHeight: '1.45', boxSizing: 'border-box' }}>
-          <div style={{ textAlign: 'center', marginBottom: '10px' }}>
-            <h3 style={{ fontSize: '18px', fontWeight: 'bold', margin: '0 0 3px 0', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+        <div className={`print-area-wrapper hidden print:block ${printPaperWidth === '58mm' ? 'print-width-58' : ''}`} style={{ fontFamily: "'JetBrains Mono', monospace", color: '#000', lineHeight: '1.45', boxSizing: 'border-box', fontWeight: 'bold' }}>
+          <div style={{ textAlign: 'center', marginBottom: '12px' }}>
+            <h3 style={{ fontSize: printPaperWidth === '58mm' ? '17px' : '20px', fontWeight: '900', margin: '0 0 4px 0', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
               {currentTenantId === 'tenant-1' ? 'Resenha Pizzaria & Esfiharia' : 'Pizzaria Dona Carmem'}
             </h3>
-            <p style={{ margin: '2px 0', fontSize: '11px', fontWeight: 'bold' }}>Lages - SC • Fone: (49) 99988-7766</p>
-            <p style={{ margin: '4px 0', fontSize: '11px' }}>---------------------------------------------</p>
-            <p style={{ fontWeight: 'black', margin: '4px 0', fontSize: '14px', textTransform: 'uppercase', background: '#000', color: '#fff', padding: '3px 0', textAlign: 'center' }}>
+            <p style={{ margin: '3px 0', fontSize: printPaperWidth === '58mm' ? '12px' : '14px', fontWeight: 'bold' }}>Lages - SC • Fone: (49) 99988-7766</p>
+            <p style={{ margin: '4px 0', fontSize: printPaperWidth === '58mm' ? '12px' : '14px' }}>---------------------------------------------</p>
+            <p style={{ fontWeight: '900', margin: '6px 0', fontSize: printPaperWidth === '58mm' ? '14px' : '16px', textTransform: 'uppercase', background: '#000', color: '#fff', padding: '4px 0', textAlign: 'center' }}>
               {printType === 'Cozinha' ? 'TICKET DE COZINHA' : 'CUPOM DE PEDIDO (NÃO FISCAL)'}
             </p>
-            <p style={{ margin: '4px 0', fontSize: '11px' }}>---------------------------------------------</p>
+            <p style={{ margin: '4px 0', fontSize: printPaperWidth === '58mm' ? '12px' : '14px' }}>---------------------------------------------</p>
           </div>
 
-          <div style={{ marginBottom: '12px', fontSize: '12px', lineHeight: '1.5' }}>
-            <p style={{ margin: '3px 0' }}><strong>CUPOM Nº:</strong> <span style={{ fontSize: '15px', fontWeight: 'bold' }}>{printOrder.orderNumber}</span></p>
-            <p style={{ margin: '3px 0' }}><strong>DATA/HORA:</strong> {new Date(printOrder.createdAt).toLocaleString('pt-BR')}</p>
-            <p style={{ margin: '3px 0' }}><strong>TIPO:</strong> <span style={{ fontSize: '14px', fontWeight: 'bold', textTransform: 'uppercase' }}>{printOrder.type === 'Delivery' ? '🏍️ DELIVERY / ENTREGA' : printOrder.type === 'Retirada' ? '🥡 RETIRADA' : '🏪 BALCÃO'}</span></p>
-            <p style={{ margin: '3px 0' }}><strong>CLIENTE:</strong> <span style={{ fontSize: '13px', fontWeight: 'bold' }}>{printOrder.customerName.toUpperCase()}</span></p>
+          <div style={{ marginBottom: '14px', fontSize: printPaperWidth === '58mm' ? '13px' : '15.5px', lineHeight: '1.5' }}>
+            <p style={{ margin: '4px 0' }}><strong>CUPOM Nº:</strong> <span style={{ fontSize: printPaperWidth === '58mm' ? '16px' : '19px', fontWeight: '900' }}>{printOrder.orderNumber}</span></p>
+            <p style={{ margin: '4px 0' }}><strong>DATA/HORA:</strong> {new Date(printOrder.createdAt).toLocaleString('pt-BR')}</p>
+            <p style={{ margin: '4px 0' }}><strong>TIPO:</strong> <span style={{ fontSize: printPaperWidth === '58mm' ? '14px' : '16px', fontWeight: '900', textTransform: 'uppercase' }}>{printOrder.type === 'Delivery' ? '🏍️ DELIVERY / ENTREGA' : printOrder.type === 'Retirada' ? '🥡 RETIRADA' : '🏪 BALCÃO'}</span></p>
+            <p style={{ margin: '4px 0' }}><strong>CLIENTE:</strong> <span style={{ fontSize: printPaperWidth === '58mm' ? '14px' : '16.5px', fontWeight: '900' }}>{printOrder.customerName.toUpperCase()}</span></p>
             {printType === 'Completo' && (
               <>
-                <p style={{ margin: '3px 0' }}><strong>FONE:</strong> <span style={{ fontWeight: 'bold' }}>{printOrder.customerPhone}</span></p>
+                <p style={{ margin: '4px 0' }}><strong>FONE:</strong> <span style={{ fontWeight: '900' }}>{printOrder.customerPhone}</span></p>
                 {printOrder.customerAddress && (
-                  <div style={{ margin: '6px 0', padding: '6px', border: '2px solid #000', borderRadius: '4px', background: '#f9f9f9' }}>
-                    <p style={{ margin: '0 0 2px 0', fontWeight: 'bold', fontSize: '12px', textTransform: 'uppercase', color: '#000' }}>📍 ENDEREÇO DE ENTREGA:</p>
-                    <p style={{ margin: '2px 0', fontSize: '13px', fontWeight: 'bold', textTransform: 'uppercase' }}>{printOrder.customerAddress}</p>
-                    <p style={{ margin: '2px 0', fontSize: '12px', fontWeight: 'bold', textTransform: 'uppercase' }}>BAIRRO: {printOrder.customerBairro || 'N/I'} • {printOrder.customerCity || 'LAGES'}</p>
+                  <div style={{ margin: '8px 0', padding: '6px', border: '3px solid #000', borderRadius: '4px', background: '#fff' }}>
+                    <p style={{ margin: '0 0 4px 0', fontWeight: '900', fontSize: printPaperWidth === '58mm' ? '13px' : '15px', textTransform: 'uppercase', color: '#000' }}>📍 ENDEREÇO DE ENTREGA:</p>
+                    <p style={{ margin: '2px 0', fontSize: printPaperWidth === '58mm' ? '14px' : '16.5px', fontWeight: '900', textTransform: 'uppercase' }}>{printOrder.customerAddress}</p>
+                    <p style={{ margin: '2px 0', fontSize: printPaperWidth === '58mm' ? '12.5px' : '14.5px', fontWeight: '900', textTransform: 'uppercase' }}>BAIRRO: {printOrder.customerBairro || 'N/I'} • {printOrder.customerCity || 'LAGES'}</p>
                   </div>
                 )}
-                <p style={{ margin: '3px 0' }}><strong>FORMA PAGAM.:</strong> <span style={{ fontSize: '13px', fontWeight: 'bold', textTransform: 'uppercase' }}>{printOrder.paymentMethod || 'Pix'}</span></p>
+                <p style={{ margin: '4px 0' }}><strong>FORMA PAGAM.:</strong> <span style={{ fontSize: printPaperWidth === '58mm' ? '14px' : '16px', fontWeight: '900', textTransform: 'uppercase' }}>{printOrder.paymentMethod || 'Pix'}</span></p>
               </>
             )}
           </div>
 
-          <p style={{ margin: '4px 0', fontSize: '11px' }}>=============================================</p>
-          <p style={{ fontWeight: 'bold', margin: '6px 0', textTransform: 'uppercase', fontSize: '13px', textAlign: 'center', letterSpacing: '1px' }}>🛒 ITENS DO PEDIDO</p>
-          <p style={{ margin: '4px 0', fontSize: '11px' }}>=============================================</p>
+          <p style={{ margin: '6px 0', fontSize: printPaperWidth === '58mm' ? '12px' : '14px' }}>=============================================</p>
+          <p style={{ fontWeight: '900', margin: '8px 0', textTransform: 'uppercase', fontSize: printPaperWidth === '58mm' ? '14px' : '16.5px', textAlign: 'center', letterSpacing: '1px' }}>🛒 ITENS DO PEDIDO</p>
+          <p style={{ margin: '6px 0', fontSize: printPaperWidth === '58mm' ? '12px' : '14px' }}>=============================================</p>
 
-          <div style={{ margin: '8px 0' }}>
+          <div style={{ margin: '10px 0' }}>
             {printOrder.items.map((item) => {
+              // Helper to highlight important observations (e.g., "sem cebola") with high impact text
+              const highlightText = (txt: string) => {
+                if (!txt) return '';
+                let upper = txt.toUpperCase();
+                upper = upper.replace(/\b(SEM\s+[A-Z0-9\s]+?)(?=\b|$|,|\.)/gi, '⚠️ 👉 $1 👈 ⚠️');
+                upper = upper.replace(/\b(NÃO\s+[A-Z0-9\s]+?)(?=\b|$|,|\.)/gi, '⚠️ 👉 $1 👈 ⚠️');
+                upper = upper.replace(/\b(TIRAR\s+[A-Z0-9\s]+?)(?=\b|$|,|\.)/gi, '⚠️ 👉 $1 👈 ⚠️');
+                upper = upper.replace(/\b(RETIRAR\s+[A-Z0-9\s]+?)(?=\b|$|,|\.)/gi, '⚠️ 👉 $1 👈 ⚠️');
+                return upper;
+              };
+
               const isCombo = item.isCombo || item.name.toLowerCase().includes('combo');
               if (isCombo) {
                 const parsed = parseComboDetails(item.name);
@@ -3533,9 +4220,9 @@ export default function SaaSOrdersPanel({
                 const comboFlavorMarker = parsed.flavors.length === 1 ? '' : `${comboFractionMultiplier} `;
 
                 return (
-                  <div key={item.id} style={{ marginBottom: '18px', borderBottom: '2px dashed #000', paddingBottom: '12px', lineHeight: '1.5' }}>
+                  <div key={item.id} style={{ marginBottom: '22px', borderBottom: '3px dashed #000', paddingBottom: '14px', lineHeight: '1.5' }}>
                     {/* Line 1: Quantity and Combo Name with Pizza Size */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '15px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: '900', fontSize: printPaperWidth === '58mm' ? '14px' : '17px' }}>
                       <span><strong>{item.quantity}x {parsed.comboTitle.toUpperCase()} - {parsed.pizzaSize.toUpperCase()}</strong></span>
                       {printType === 'Completo' && (
                         <span><strong>R$ {(item.price * item.quantity).toFixed(2)}</strong></span>
@@ -3543,7 +4230,7 @@ export default function SaaSOrdersPanel({
                     </div>
 
                     {/* Fraction descriptor */}
-                    <div style={{ fontSize: '12px', margin: '4px 0', color: '#000', fontWeight: 'bold' }}>
+                    <div style={{ fontSize: printPaperWidth === '58mm' ? '12.5px' : '15px', margin: '6px 0', color: '#000', fontWeight: '900' }}>
                       <span>- {comboFractionLabel}</span>
                     </div>
 
@@ -3551,13 +4238,13 @@ export default function SaaSOrdersPanel({
                     {parsed.flavors.map((fl, idx) => {
                       const ingredients = getIngredientsForFlavor(fl);
                       return (
-                        <div key={idx} style={{ marginLeft: '8px', marginBottom: '5px' }}>
-                          <div style={{ fontWeight: 'bold', fontSize: '14px' }}>
+                        <div key={idx} style={{ marginLeft: '10px', marginBottom: '6px' }}>
+                          <div style={{ fontWeight: '900', fontSize: printPaperWidth === '58mm' ? '13px' : '15.5px' }}>
                             <strong>• {comboFlavorMarker}{fl.toUpperCase()}</strong>
                           </div>
                           {ingredients && (
-                            <div style={{ fontSize: '11px', color: '#333', fontStyle: 'italic', marginLeft: '12px', lineHeight: '1.2' }}>
-                              ({ingredients.toLowerCase()})
+                            <div style={{ fontSize: printPaperWidth === '58mm' ? '12px' : '14px', color: '#000', fontWeight: 'bold', marginLeft: '14px', lineHeight: '1.25', textTransform: 'uppercase' }}>
+                              ({ingredients.toUpperCase()})
                             </div>
                           )}
                         </div>
@@ -3565,32 +4252,32 @@ export default function SaaSOrdersPanel({
                     })}
 
                     {/* Highlighted Brotinho doce */}
-                    <div style={{ fontWeight: 'bold', fontSize: '13px', marginLeft: '8px', marginTop: '6px', borderLeft: '4px solid #000', paddingLeft: '8px', background: '#f5f5f5', textTransform: 'uppercase' }}>
+                    <div style={{ fontWeight: '900', fontSize: printPaperWidth === '58mm' ? '12.5px' : '15px', marginLeft: '10px', marginTop: '8px', border: '2.5px solid #000', padding: '4px 6px', textTransform: 'uppercase', background: '#fff' }}>
                       <strong>🍓 BROTINHO: {parsed.sweetFlavor.toUpperCase()}</strong>
                     </div>
 
                     {/* Drink / Refrigerante */}
                     {isCocaDrink ? (
-                      <div style={{ fontWeight: 'bold', fontSize: '13px', marginLeft: '8px', marginTop: '6px', borderLeft: '4px solid #000', paddingLeft: '8px', background: '#f5f5f5', textTransform: 'uppercase' }}>
+                      <div style={{ fontWeight: '900', fontSize: printPaperWidth === '58mm' ? '12.5px' : '15px', marginLeft: '10px', marginTop: '8px', border: '2.5px solid #000', padding: '4px 6px', textTransform: 'uppercase', background: '#fff' }}>
                         <strong>🥤 BEBIDA: {parsed.drink.toUpperCase()}</strong>
                       </div>
                     ) : (
-                      <div style={{ fontWeight: 'bold', fontSize: '13px', marginLeft: '8px', marginTop: '6px', textTransform: 'uppercase' }}>
+                      <div style={{ fontWeight: '900', fontSize: printPaperWidth === '58mm' ? '12.5px' : '15px', marginLeft: '10px', marginTop: '8px', textTransform: 'uppercase' }}>
                         • BEBIDA: {parsed.drink.toUpperCase()}
                       </div>
                     )}
 
                     {/* Surcharges / Extras */}
                     {item.cocaDifference && item.cocaDifference > 0 && (
-                      <div style={{ fontWeight: 'bold', fontSize: '13px', marginLeft: '8px', marginTop: '4px', color: '#000' }}>
+                      <div style={{ fontWeight: '900', fontSize: printPaperWidth === '58mm' ? '12.5px' : '15px', marginLeft: '10px', marginTop: '6px', color: '#000' }}>
                         <strong>• DIFERENÇA COCA-COLA: + R$ {item.cocaDifference.toFixed(2)}</strong>
                       </div>
                     )}
 
                     {/* Item Notes */}
                     {item.notes && (
-                      <div style={{ fontWeight: 'bold', fontSize: '13px', marginTop: '6px', borderLeft: '4px solid #000', paddingLeft: '8px', background: '#f5f5f5' }}>
-                        <strong>OBS: {item.notes.toUpperCase()}</strong>
+                      <div style={{ fontWeight: '900', fontSize: printPaperWidth === '58mm' ? '13.5px' : '16px', marginTop: '8px', border: '3px double #000', padding: '6px', background: '#fff', textTransform: 'uppercase', lineHeight: '1.3' }}>
+                        <strong>⚠️ {highlightText(item.notes)}</strong>
                       </div>
                     )}
                   </div>
@@ -3606,9 +4293,9 @@ export default function SaaSOrdersPanel({
                 const flavorMarker = item.fraction === 1 ? '' : `${fractionMultiplier} `;
 
                 return (
-                  <div key={item.id} style={{ marginBottom: '18px', borderBottom: '2px dashed #000', paddingBottom: '12px', lineHeight: '1.5' }}>
+                  <div key={item.id} style={{ marginBottom: '22px', borderBottom: '3px dashed #000', paddingBottom: '14px', lineHeight: '1.5' }}>
                     {/* Line 1: Quantity and Item name */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '15px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: '900', fontSize: printPaperWidth === '58mm' ? '14px' : '17px' }}>
                       <span><strong>{item.quantity}x {sizeText.toUpperCase()}</strong></span>
                       {printType === 'Completo' && (
                         <span><strong>R$ {(item.price * item.quantity).toFixed(2)}</strong></span>
@@ -3616,7 +4303,7 @@ export default function SaaSOrdersPanel({
                     </div>
                     
                     {/* Fraction descriptor */}
-                    <div style={{ fontSize: '12px', margin: '4px 0', color: '#000', fontWeight: 'bold' }}>
+                    <div style={{ fontSize: printPaperWidth === '58mm' ? '12.5px' : '15px', margin: '6px 0', color: '#000', fontWeight: '900' }}>
                       <span>- {fractionLabel}</span>
                     </div>
                     
@@ -3624,13 +4311,13 @@ export default function SaaSOrdersPanel({
                     {flavors.map((fl, idx) => {
                       const ingredients = getIngredientsForFlavor(fl);
                       return (
-                        <div key={idx} style={{ marginLeft: '8px', marginBottom: '5px' }}>
-                          <div style={{ fontWeight: 'bold', fontSize: '14px' }}>
+                        <div key={idx} style={{ marginLeft: '10px', marginBottom: '6px' }}>
+                          <div style={{ fontWeight: '900', fontSize: printPaperWidth === '58mm' ? '13.5px' : '16px' }}>
                             <strong>• {flavorMarker}{fl.toUpperCase()}</strong>
                           </div>
                           {ingredients && (
-                            <div style={{ fontSize: '11px', color: '#333', fontStyle: 'italic', marginLeft: '12px', lineHeight: '1.2' }}>
-                              ({ingredients.toLowerCase()})
+                            <div style={{ fontSize: printPaperWidth === '58mm' ? '12px' : '14px', color: '#000', fontWeight: 'bold', marginLeft: '14px', lineHeight: '1.25', textTransform: 'uppercase' }}>
+                              ({ingredients.toUpperCase()})
                             </div>
                           )}
                         </div>
@@ -3639,31 +4326,31 @@ export default function SaaSOrdersPanel({
                     
                     {/* Border info */}
                     {item.border && (
-                      <div style={{ fontWeight: 'bold', fontSize: '13px', marginLeft: '8px', marginTop: '4px' }}>
+                      <div style={{ fontWeight: '900', fontSize: printPaperWidth === '58mm' ? '13px' : '15px', marginLeft: '10px', marginTop: '6px', textTransform: 'uppercase' }}>
                         <strong>• BORDA: {item.border.name.toUpperCase()}</strong>
                       </div>
                     )}
 
                     {/* Surcharges / Extras */}
                     {item.cocaDifference && item.cocaDifference > 0 && (
-                      <div style={{ fontWeight: 'bold', fontSize: '13px', marginLeft: '8px', marginTop: '4px', color: '#000' }}>
+                      <div style={{ fontWeight: '900', fontSize: printPaperWidth === '58mm' ? '13px' : '15px', marginLeft: '10px', marginTop: '6px', color: '#000' }}>
                         <strong>• DIFERENÇA COCA-COLA: + R$ {item.cocaDifference.toFixed(2)}</strong>
                       </div>
                     )}
                     
                     {/* Item Notes */}
                     {item.notes && (
-                      <div style={{ fontWeight: 'bold', fontSize: '13px', marginTop: '6px', borderLeft: '4px solid #000', paddingLeft: '8px', background: '#f5f5f5' }}>
-                        <strong>OBS: {item.notes.toUpperCase()}</strong>
+                      <div style={{ fontWeight: '900', fontSize: printPaperWidth === '58mm' ? '13.5px' : '16px', marginTop: '8px', border: '3px double #000', padding: '6px', background: '#fff', textTransform: 'uppercase', lineHeight: '1.3' }}>
+                        <strong>⚠️ {highlightText(item.notes)}</strong>
                       </div>
                     )}
                   </div>
                 );
               } else {
                 return (
-                  <div key={item.id} style={{ marginBottom: '18px', borderBottom: '2px dashed #000', paddingBottom: '12px', lineHeight: '1.5' }}>
+                  <div key={item.id} style={{ marginBottom: '22px', borderBottom: '3px dashed #000', paddingBottom: '14px', lineHeight: '1.5' }}>
                     {/* Line 1: Quantity and Item name */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '15px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: '900', fontSize: printPaperWidth === '58mm' ? '14px' : '17px' }}>
                       <span><strong>{item.quantity}x {item.name.toUpperCase()}</strong></span>
                       {printType === 'Completo' && (
                         <span><strong>R$ {(item.price * item.quantity).toFixed(2)}</strong></span>
@@ -3672,15 +4359,15 @@ export default function SaaSOrdersPanel({
 
                     {/* Surcharges / Extras */}
                     {item.cocaDifference && item.cocaDifference > 0 && (
-                      <div style={{ fontWeight: 'bold', fontSize: '13px', marginLeft: '8px', marginTop: '4px', color: '#000' }}>
+                      <div style={{ fontWeight: '900', fontSize: printPaperWidth === '58mm' ? '13px' : '15px', marginLeft: '10px', marginTop: '6px', color: '#000' }}>
                         <strong>• DIFERENÇA COCA-COLA: + R$ {item.cocaDifference.toFixed(2)}</strong>
                       </div>
                     )}
                     
                     {/* Item Notes */}
                     {item.notes && (
-                      <div style={{ fontWeight: 'bold', fontSize: '13px', marginTop: '6px', borderLeft: '4px solid #000', paddingLeft: '8px', background: '#f5f5f5' }}>
-                        <strong>OBS: {item.notes.toUpperCase()}</strong>
+                      <div style={{ fontWeight: '900', fontSize: printPaperWidth === '58mm' ? '13.5px' : '16px', marginTop: '8px', border: '3px double #000', padding: '6px', background: '#fff', textTransform: 'uppercase', lineHeight: '1.3' }}>
+                        <strong>⚠️ {highlightText(item.notes)}</strong>
                       </div>
                     )}
                   </div>
@@ -3689,47 +4376,55 @@ export default function SaaSOrdersPanel({
             })}
           </div>
 
-          <p style={{ margin: '4px 0', fontSize: '11px' }}>=============================================</p>
+          <p style={{ margin: '6px 0', fontSize: printPaperWidth === '58mm' ? '12px' : '14px' }}>=============================================</p>
 
           {printType === 'Completo' ? (
-            <div style={{ margin: '10px 0', fontSize: '12px', fontWeight: 'bold', lineHeight: '1.6' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'normal' }}>
+            <div style={{ margin: '12px 0', fontSize: printPaperWidth === '58mm' ? '13.5px' : '16px', fontWeight: '900', lineHeight: '1.6' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold' }}>
                 <span>Subtotal dos itens:</span>
                 <span>R$ {printOrder.items.reduce((sum, item) => sum + item.price * item.quantity, 0).toFixed(2)}</span>
               </div>
               {printOrder.deliveryFee > 0 && (
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'normal' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold' }}>
                   <span>Taxa de Entrega:</span>
                   <span>R$ {printOrder.deliveryFee.toFixed(2)}</span>
                 </div>
               )}
               {printOrder.discount > 0 && (
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'normal', color: 'red' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', color: '#000' }}>
                   <span>Descontos:</span>
                   <span>- R$ {printOrder.discount.toFixed(2)}</span>
                 </div>
               )}
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '15px', fontWeight: 'bold', borderTop: '2px solid #000', paddingTop: '8px', marginTop: '8px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: printPaperWidth === '58mm' ? '17px' : '20px', fontWeight: '900', borderTop: '3px solid #000', paddingTop: '10px', marginTop: '10px' }}>
                 <span><strong>TOTAL GERAL:</strong></span>
-                <span style={{ fontSize: '20px', fontWeight: '900' }}><strong>R$ {printOrder.total.toFixed(2)}</strong></span>
+                <span style={{ fontSize: printPaperWidth === '58mm' ? '22px' : '25px', fontWeight: '900' }}><strong>R$ {printOrder.total.toFixed(2)}</strong></span>
               </div>
             </div>
           ) : (
-            <div style={{ marginTop: '10px', fontSize: '12px', textAlign: 'center' }}>
-              <p style={{ fontWeight: 'bold', margin: '4px 0', textTransform: 'uppercase', background: '#000', color: '#fff', padding: '2px 0' }}>🔥 IMPRESSÃO COZINHA (PRODUÇÃO) 🔥</p>
+            <div style={{ marginTop: '12px', fontSize: printPaperWidth === '58mm' ? '13px' : '15px', textAlign: 'center' }}>
+              <p style={{ fontWeight: '900', margin: '6px 0', textTransform: 'uppercase', background: '#000', color: '#fff', padding: '4px 0' }}>🔥 IMPRESSÃO COZINHA (PRODUÇÃO) 🔥</p>
             </div>
           )}
 
           {printOrder.notes && (
-            <div style={{ marginTop: '10px', border: '2px solid #000', padding: '8px', fontSize: '12px', background: '#fdfdfd' }}>
-              <strong style={{ fontSize: '13px' }}>OBSERVAÇÕES GERAIS DO PEDIDO:</strong>
-              <p style={{ margin: '6px 0 0 0', fontWeight: 'bold', fontSize: '14px', lineHeight: '1.4' }}>{printOrder.notes.toUpperCase()}</p>
+            <div style={{ marginTop: '14px', border: '4px solid #000', padding: '10px', fontSize: printPaperWidth === '58mm' ? '13.5px' : '16px', background: '#fff' }}>
+              <strong style={{ fontSize: printPaperWidth === '58mm' ? '14px' : '16.5px' }}>⚠️ OBSERVAÇÕES GERAIS DO PEDIDO:</strong>
+              <p style={{ margin: '8px 0 0 0', fontWeight: '900', fontSize: printPaperWidth === '58mm' ? '15.5px' : '18.5px', lineHeight: '1.4' }}>
+                {(() => {
+                  const upper = printOrder.notes.toUpperCase();
+                  return upper.replace(/\b(SEM\s+[A-Z0-9\s]+?)(?=\b|$|,|\.)/gi, '⚠️ 👉 $1 👈 ⚠️')
+                              .replace(/\b(NÃO\s+[A-Z0-9\s]+?)(?=\b|$|,|\.)/gi, '⚠️ 👉 $1 👈 ⚠️')
+                              .replace(/\b(TIRAR\s+[A-Z0-9\s]+?)(?=\b|$|,|\.)/gi, '⚠️ 👉 $1 👈 ⚠️')
+                              .replace(/\b(RETIRAR\s+[A-Z0-9\s]+?)(?=\b|$|,|\.)/gi, '⚠️ 👉 $1 👈 ⚠️');
+                })()}
+              </p>
             </div>
           )}
 
-          <div style={{ textAlign: 'center', marginTop: '15px', fontSize: '10px', fontWeight: 'bold' }}>
+          <div style={{ textAlign: 'center', marginTop: '20px', fontSize: printPaperWidth === '58mm' ? '11px' : '13px', fontWeight: '900' }}>
             <p style={{ margin: '0' }}>Obrigado pela preferência!</p>
-            <p style={{ margin: '4px 0 0 0', fontSize: '8px', color: '#666', fontWeight: 'normal' }}>Resenha Sistemas de Gestão</p>
+            <p style={{ margin: '6px 0 0 0', fontSize: printPaperWidth === '58mm' ? '9px' : '11px', color: '#000', fontWeight: 'bold' }}>Resenha Sistemas de Gestão</p>
           </div>
         </div>,
         document.body

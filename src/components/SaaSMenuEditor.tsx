@@ -4,8 +4,8 @@
  */
 
 import React, { useState } from 'react';
-import { Product, PizzaSapor, PizzaBorder } from '../types';
-import { pizzaFlavors, pizzaBorders, products, saveProducts, savePizzaFlavors, savePizzaBorders } from '../data/mockData';
+import { Product, PizzaSapor, PizzaBorder, PizzaIngredient } from '../types';
+import { pizzaFlavors, pizzaBorders, pizzaIngredients, products, saveProducts, savePizzaFlavors, savePizzaBorders, savePizzaIngredients } from '../data/mockData';
 import { Plus, Trash2, Edit3, Settings, ShieldCheck, Tag, Sparkles, X, Check, AlertCircle, ToggleLeft, ToggleRight } from 'lucide-react';
 
 interface SaaSMenuEditorProps {
@@ -22,14 +22,57 @@ export interface Promotion {
 }
 
 export default function SaaSMenuEditor({ currentTenantId }: SaaSMenuEditorProps) {
+  // Resolve currentTenant from localStorage or fallback
+  const currentTenant = (() => {
+    try {
+      const savedActive = localStorage.getItem('saas_active_tenant');
+      if (savedActive) {
+        const parsed = JSON.parse(savedActive);
+        if (parsed && parsed.id === currentTenantId) {
+          return parsed;
+        }
+      }
+      
+      const savedList = localStorage.getItem('saas_tenants_list');
+      if (savedList) {
+        const list = JSON.parse(savedList);
+        const found = list.find((t: any) => t.id === currentTenantId);
+        if (found) return found;
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    return {
+      id: currentTenantId,
+      type: currentTenantId === 'tenant-2' ? 'hamburgueria' : 'pizzaria'
+    };
+  })();
+
+  const isPizzaria =
+    currentTenant.type === 'pizzaria' ||
+    currentTenant.id === 'tenant-1' ||
+    currentTenant.name?.toLowerCase().includes('pizzaria') ||
+    currentTenant.name?.toLowerCase().includes('pizza');
+
   // Tabs: 'menu' (Cardápio e Preços) | 'promotions' (Promoções)
   const [activeTab, setActiveTab] = useState<'menu' | 'promotions'>('menu');
-  const [activeCategory, setActiveCategory] = useState<'Pizza' | 'Hamburguer' | 'Bebida' | 'Acompanhamento' | 'Combo'>('Pizza');
+  const [activeCategory, setActiveCategory] = useState<'Pizza' | 'Hamburguer' | 'Bebida' | 'Acompanhamento' | 'Combo' | 'Calzones' | 'Adicionais'>(
+    isPizzaria ? 'Pizza' : 'Hamburguer'
+  );
+
+  React.useEffect(() => {
+    if (isPizzaria && activeCategory === 'Hamburguer') {
+      setActiveCategory('Pizza');
+    } else if (!isPizzaria && (activeCategory === 'Pizza' || activeCategory === 'Calzones' || activeCategory === 'Adicionais')) {
+      setActiveCategory('Hamburguer');
+    }
+  }, [isPizzaria]);
   
   // Local state initialized with live storage references
   const [productList, setProductList] = useState<Product[]>(products);
   const [flavorsList, setFlavorsList] = useState<PizzaSapor[]>(pizzaFlavors);
   const [bordersList, setBordersList] = useState<PizzaBorder[]>(pizzaBorders);
+  const [ingredientsList, setIngredientsList] = useState<PizzaIngredient[]>(pizzaIngredients);
 
   // Promotions local storage loading
   const [promotions, setPromotions] = useState<Promotion[]>(() => {
@@ -70,7 +113,7 @@ export default function SaaSMenuEditor({ currentTenantId }: SaaSMenuEditorProps)
 
   // Form Fields
   const [formName, setFormName] = useState('');
-  const [formCategory, setFormCategory] = useState<'Pizza' | 'Hamburguer' | 'Bebida' | 'Acompanhamento' | 'Combo'>('Pizza');
+  const [formCategory, setFormCategory] = useState<'Pizza' | 'Hamburguer' | 'Bebida' | 'Acompanhamento' | 'Combo' | 'Calzones'>('Pizza');
   const [formPrice, setFormPrice] = useState(0);
   const [formDescription, setFormDescription] = useState('');
   const [formIsCombo, setFormIsCombo] = useState(false);
@@ -84,11 +127,110 @@ export default function SaaSMenuEditor({ currentTenantId }: SaaSMenuEditorProps)
   const [promoDayOfWeek, setPromoDayOfWeek] = useState('Tuesday');
   const [promoRulesText, setPromoRulesText] = useState('');
 
-  // Filter products by Tenant
+  // Pizza Flavor Form Modal State
+  const [showFlavorModal, setShowFlavorModal] = useState(false);
+  const [flavorFormId, setFlavorFormId] = useState<string | null>(null);
+  const [flavorFormName, setFlavorFormName] = useState('');
+  const [flavorFormIngredients, setFlavorFormIngredients] = useState('');
+  const [flavorFormIsSpecial, setFlavorFormIsSpecial] = useState(false);
+  const [flavorFormIsSweet, setFlavorFormIsSweet] = useState(false);
+  const [flavorFormAdditionalPrice, setFlavorFormAdditionalPrice] = useState(0);
+  const [adminFlavorSearch, setAdminFlavorSearch] = useState('');
+
+  // Adicionais (Ingredients) Form State
+  const [ingredientSearch, setIngredientSearch] = useState('');
+  const [showNewIngredientForm, setShowNewIngredientForm] = useState(false);
+  const [newIngredientName, setNewIngredientName] = useState('');
+  const [newIngredientPrice, setNewIngredientPrice] = useState(4.00);
+
+  const handleAddNewIngredient = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newIngredientName.trim()) return;
+    const newIng: PizzaIngredient = {
+      id: `ing-${Date.now()}`,
+      name: newIngredientName.trim(),
+      price: newIngredientPrice
+    };
+    const updated = [...ingredientsList, newIng];
+    setIngredientsList(updated);
+    savePizzaIngredients(updated);
+    setNewIngredientName('');
+    setNewIngredientPrice(4.00);
+    setShowNewIngredientForm(false);
+  };
+
+  const handleUpdateIngredientPrice = (id: string, price: number) => {
+    const updated = ingredientsList.map(ing => ing.id === id ? { ...ing, price } : ing);
+    setIngredientsList(updated);
+    savePizzaIngredients(updated);
+  };
+
+  const handleDeleteIngredient = (id: string) => {
+    const ingName = ingredientsList.find(ing => ing.id === id)?.name || '';
+    if (confirm(`Excluir adicional "${ingName}"?`)) {
+      const updated = ingredientsList.filter(ing => ing.id !== id);
+      setIngredientsList(updated);
+      savePizzaIngredients(updated);
+    }
+  };
+
+  const handleOpenFlavorModal = (flavor?: PizzaSapor) => {
+    if (flavor) {
+      setFlavorFormId(flavor.id);
+      setFlavorFormName(flavor.name);
+      setFlavorFormIngredients(flavor.ingredients);
+      setFlavorFormIsSpecial(flavor.isSpecial);
+      setFlavorFormIsSweet(!!flavor.isSweet);
+      setFlavorFormAdditionalPrice(flavor.additionalPrice);
+    } else {
+      setFlavorFormId(null);
+      setFlavorFormName('');
+      setFlavorFormIngredients('');
+      setFlavorFormIsSpecial(false);
+      setFlavorFormIsSweet(false);
+      setFlavorFormAdditionalPrice(0);
+    }
+    setShowFlavorModal(true);
+  };
+
+  const handleSaveFlavor = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!flavorFormName.trim()) return;
+
+    let updatedFlavors: PizzaSapor[];
+    if (flavorFormId) {
+      updatedFlavors = flavorsList.map((f) =>
+        f.id === flavorFormId
+          ? {
+              ...f,
+              name: flavorFormName.trim(),
+              ingredients: flavorFormIngredients.trim(),
+              isSpecial: flavorFormIsSpecial,
+              isSweet: flavorFormIsSweet,
+              additionalPrice: flavorFormIsSpecial ? flavorFormAdditionalPrice : 0
+            }
+          : f
+      );
+    } else {
+      const newFlavor: PizzaSapor = {
+        id: `f-${Date.now()}`,
+        name: flavorFormName.trim(),
+        ingredients: flavorFormIngredients.trim(),
+        isSpecial: flavorFormIsSpecial,
+        isSweet: flavorFormIsSweet,
+        additionalPrice: flavorFormIsSpecial ? flavorFormAdditionalPrice : 0
+      };
+      updatedFlavors = [...flavorsList, newFlavor];
+    }
+
+    setFlavorsList(updatedFlavors);
+    savePizzaFlavors(updatedFlavors);
+    setShowFlavorModal(false);
+  };
+
+  // Filter products by Tenant type
   const tenantProducts = productList.filter(
-    (p) =>
-      (currentTenantId === 'tenant-1' && p.id.startsWith('p-1')) ||
-      (currentTenantId === 'tenant-2' && p.id.startsWith('p-2'))
+    (p) => isPizzaria ? p.id.startsWith('p-1') : p.id.startsWith('p-2')
   );
 
   // Open modal to add product
@@ -144,7 +286,7 @@ export default function SaaSMenuEditor({ currentTenantId }: SaaSMenuEditorProps)
       });
     } else {
       // Generate ID matching tenant prefix
-      const prefix = currentTenantId === 'tenant-1' ? 'p-1' : 'p-2';
+      const prefix = isPizzaria ? 'p-1' : 'p-2';
       const newProd: Product = {
         id: `${prefix}${Date.now()}`,
         name: formName,
@@ -246,6 +388,26 @@ export default function SaaSMenuEditor({ currentTenantId }: SaaSMenuEditorProps)
     }
   };
 
+  const filteredProducts = tenantProducts.filter((p) => {
+    if (isPizzaria) {
+      if (activeCategory === 'Calzones') {
+        return (
+          p.category === 'Calzones' ||
+          p.category === 'Acompanhamento' ||
+          p.name.toLowerCase().includes('calzone')
+        );
+      }
+      if (activeCategory === 'Pizza') {
+        return (
+          p.category === 'Pizza' &&
+          !p.name.toLowerCase().includes('calzone') &&
+          !p.name.toLowerCase().includes('customizada')
+        );
+      }
+    }
+    return p.category === activeCategory;
+  });
+
   return (
     <div className="space-y-6">
       {/* Menu Header with tab toggle */}
@@ -316,11 +478,11 @@ export default function SaaSMenuEditor({ currentTenantId }: SaaSMenuEditorProps)
 
             {/* Categories Tab Selector */}
             <div className="flex gap-1.5 border-b border-stone-100 pb-2.5 overflow-x-auto">
-              {(currentTenantId === 'tenant-1' ? ['Pizza', 'Combo', 'Bebida', 'Acompanhamento'] : ['Hamburguer', 'Combo', 'Bebida', 'Acompanhamento']).map((cat) => (
+              {(isPizzaria ? ['Pizza', 'Combo', 'Bebida', 'Calzones', 'Adicionais'] : ['Hamburguer', 'Combo', 'Bebida', 'Acompanhamento']).map((cat) => (
                 <button
                   key={cat}
                   onClick={() => setActiveCategory(cat as any)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
                     activeCategory === cat
                       ? 'bg-orange-50 text-orange-700 border border-orange-200 shadow-3xs'
                       : 'text-stone-500 hover:text-stone-700 hover:bg-stone-50 border border-transparent'
@@ -332,15 +494,293 @@ export default function SaaSMenuEditor({ currentTenantId }: SaaSMenuEditorProps)
             </div>
 
             {/* Products List */}
-            <div className="space-y-2.5">
-              {tenantProducts.filter((p) => p.category === activeCategory).length === 0 ? (
-                <div className="text-center py-12 text-xs text-stone-400 font-medium">
-                  Nenhum produto cadastrado nesta categoria para esta empresa.
+            <div className="space-y-4">
+              {isPizzaria && activeCategory === 'Adicionais' ? (
+                // RENDER PIZZA INGREDIENTS LIST
+                <div className="space-y-4 animate-fade-in">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-stone-50 p-3.5 rounded-2xl border border-stone-200">
+                    <div className="flex-1 w-full">
+                      <input
+                        type="text"
+                        placeholder="Buscar ingrediente..."
+                        value={ingredientSearch}
+                        onChange={(e) => setIngredientSearch(e.target.value)}
+                        className="w-full bg-white border border-stone-200 rounded-xl px-3 py-1.5 text-xs focus:ring-1 focus:ring-orange-500 focus:border-orange-500 outline-none font-medium"
+                      />
+                    </div>
+                    <button
+                      onClick={() => setShowNewIngredientForm(!showNewIngredientForm)}
+                      className="w-full sm:w-auto bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold px-4 py-2 rounded-xl flex items-center justify-center gap-1.5 transition-all shadow-3xs cursor-pointer"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      Novo Adicional
+                    </button>
+                  </div>
+
+                  {showNewIngredientForm && (
+                    <form onSubmit={handleAddNewIngredient} className="p-4 bg-orange-50/30 border border-orange-200 rounded-2xl flex flex-col sm:flex-row items-end gap-3 animate-slide-in">
+                      <div className="flex-1 w-full space-y-1">
+                        <label className="text-[10px] font-black uppercase text-stone-500 tracking-wider">Nome do Adicional</label>
+                        <input
+                          type="text"
+                          required
+                          value={newIngredientName}
+                          onChange={(e) => setNewIngredientName(e.target.value)}
+                          placeholder="Ex: Milho Verde, Catupiry Original, etc."
+                          className="w-full bg-white border border-stone-200 rounded-xl px-3 py-2 text-xs focus:ring-1 focus:ring-orange-500 focus:border-orange-500 outline-none font-medium"
+                        />
+                      </div>
+                      <div className="w-full sm:w-32 space-y-1">
+                        <label className="text-[10px] font-black uppercase text-stone-500 tracking-wider">Valor (R$)</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          required
+                          value={newIngredientPrice}
+                          onChange={(e) => setNewIngredientPrice(parseFloat(e.target.value) || 0)}
+                          className="w-full bg-white border border-stone-200 rounded-xl px-3 py-2 text-xs focus:ring-1 focus:ring-orange-500 focus:border-orange-500 outline-none font-medium font-mono"
+                        />
+                      </div>
+                      <div className="flex gap-2 w-full sm:w-auto">
+                        <button
+                          type="submit"
+                          className="flex-1 sm:flex-none bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold px-4 py-2 rounded-xl transition-all shadow-3xs cursor-pointer"
+                        >
+                          Adicionar
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowNewIngredientForm(false);
+                            setNewIngredientName('');
+                            setNewIngredientPrice(4.00);
+                          }}
+                          className="px-3 py-2 bg-stone-100 hover:bg-stone-200 text-stone-600 rounded-xl text-xs font-bold cursor-pointer"
+                        >
+                          Cancelar
+                        </button>
+                      </div>
+                    </form>
+                  )}
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {ingredientsList
+                      .filter(ing => ing.name.toLowerCase().includes(ingredientSearch.toLowerCase()))
+                      .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))
+                      .map((ing) => (
+                        <div key={ing.id} className="p-3 bg-white border border-stone-200 rounded-2xl flex items-center justify-between gap-3 shadow-3xs hover:border-stone-300 transition-all">
+                          <span className="text-xs font-bold text-stone-900 uppercase tracking-wide">{ing.name}</span>
+                          <div className="flex items-center gap-2">
+                            <div className="flex items-center bg-stone-50 border border-stone-200 rounded-xl px-2.5 py-1">
+                              <span className="text-[10px] font-bold text-stone-400 font-mono mr-1 font-sans">R$</span>
+                              <input
+                                type="number"
+                                step="0.01"
+                                value={ing.price}
+                                onChange={(e) => handleUpdateIngredientPrice(ing.id, parseFloat(e.target.value) || 0)}
+                                className="w-16 bg-transparent border-none text-xs font-bold text-stone-800 outline-none focus:ring-0 p-0 font-mono"
+                              />
+                            </div>
+                            <button
+                              onClick={() => handleDeleteIngredient(ing.id)}
+                              className="text-stone-400 hover:text-red-600 p-1.5 rounded cursor-pointer transition-all hover:bg-red-50"
+                              title="Excluir"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    {ingredientsList.length === 0 && (
+                      <p className="text-xs text-stone-400 italic col-span-2 text-center py-6">Nenhum adicional cadastrado.</p>
+                    )}
+                  </div>
+                </div>
+              ) : isPizzaria && activeCategory === 'Pizza' ? (
+                // RENDER PIZZA FLAVORS LIST AND BASES IN THE CENTRAL PANEL
+                <div className="space-y-5 animate-fade-in">
+                  {/* Base Product Info (so they can edit the general "Pizza Customizada" price if they want to) */}
+                  {tenantProducts
+                    .filter((p) => p.category === 'Pizza' && !p.name.toLowerCase().includes('customizada') && !p.name.toLowerCase().includes('calzone'))
+                    .map((product) => (
+                      <div
+                        key={product.id}
+                        className="bg-orange-50/40 border border-orange-200 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-3xs"
+                      >
+                        <div className="space-y-0.5">
+                          <div className="flex items-center gap-2">
+                            <span className="bg-orange-600 text-white rounded-md px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wider font-mono">
+                              Cadastro Base
+                            </span>
+                            <span className="font-bold text-stone-900 text-xs sm:text-sm">{product.name}</span>
+                          </div>
+                          <p className="text-[11px] text-stone-500 leading-normal font-semibold">
+                            {product.description}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2.5 self-end sm:self-auto shrink-0">
+                          <span className="font-mono text-xs font-bold text-stone-850 bg-white px-2 py-0.5 rounded-lg border border-stone-200 shadow-3xs">
+                            R$ {product.price.toFixed(2)}
+                          </span>
+                          <button
+                            onClick={() => handleOpenEditModal(product)}
+                            className="bg-white hover:bg-stone-50 text-stone-500 hover:text-stone-800 p-1.5 rounded-lg border border-stone-200 hover:border-stone-300 transition-all cursor-pointer shadow-3xs"
+                            title="Editar Preço Base"
+                          >
+                            <Edit3 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+
+                  {/* Pizza Flavors Manager */}
+                  <div className="space-y-4 pt-2">
+                    <div className="flex items-center justify-between border-b border-stone-100 pb-2">
+                      <h5 className="font-display font-bold text-stone-950 text-xs flex items-center gap-1.5 uppercase tracking-wider">
+                        <Sparkles className="w-3.5 h-3.5 text-orange-600" />
+                        Cardápio de Sabores de Pizzas
+                      </h5>
+                      <button
+                        onClick={() => handleOpenFlavorModal()}
+                        className="bg-orange-600 hover:bg-orange-500 text-white hover:shadow-3xs text-[10px] font-black uppercase px-2.5 py-1.5 rounded-lg transition-all cursor-pointer"
+                      >
+                        + Cadastrar Sabor
+                      </button>
+                    </div>
+
+                    {/* Search Bar */}
+                    <div className="relative">
+                      <input
+                        type="text"
+                        placeholder="🔍 Filtrar sabores por nome ou ingrediente..."
+                        value={adminFlavorSearch}
+                        onChange={(e) => setAdminFlavorSearch(e.target.value)}
+                        className="w-full bg-stone-50 border border-stone-200 text-xs rounded-xl py-2 px-3 focus:outline-none focus:border-orange-500 font-semibold text-stone-850 placeholder-stone-400"
+                      />
+                    </div>
+
+                    {adminFlavorSearch.trim() !== '' ? (
+                      /* Search result listing */
+                      <div className="space-y-2">
+                        <p className="text-[9px] font-bold text-stone-400 uppercase font-mono tracking-wider">Resultados da Busca:</p>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          {flavorsList
+                            .filter(f => f.name.toLowerCase().includes(adminFlavorSearch.toLowerCase()) || f.ingredients.toLowerCase().includes(adminFlavorSearch.toLowerCase()))
+                            .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))
+                            .map((flavor, idx) => (
+                              <div key={flavor.id} className="p-3 bg-stone-50/50 border border-stone-200 rounded-2xl flex items-start justify-between gap-1.5 hover:border-stone-300 transition-all">
+                                <div className="flex-1 min-w-0 space-y-1">
+                                  <div className="text-xs text-stone-850 font-bold">
+                                    <span className="font-mono text-stone-400 mr-1">{String(idx + 1).padStart(2, '0')}-</span>
+                                    <strong className="text-stone-950 uppercase">{flavor.name}</strong>
+                                  </div>
+                                  <p className="text-[10px] text-stone-500 leading-snug italic">{flavor.ingredients}</p>
+                                  <div className="flex items-center gap-1.5 mt-1">
+                                    <span className="bg-stone-200 text-stone-600 text-[8px] px-1.5 py-0.5 rounded font-bold uppercase border border-stone-350">
+                                      {flavor.isSweet ? 'Doce' : 'Salgada'}
+                                    </span>
+                                    <span className={`${flavor.isSpecial ? 'bg-amber-100 text-amber-800' : 'bg-stone-100 text-stone-600'} text-[8px] px-1.5 py-0.5 rounded font-bold uppercase`}>
+                                      {flavor.isSpecial ? `Especial (+R$ ${flavor.additionalPrice.toFixed(2)})` : 'Tradicional'}
+                                    </span>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-1 shrink-0">
+                                  <button
+                                    onClick={() => handleOpenFlavorModal(flavor)}
+                                    className="text-stone-400 hover:text-orange-600 p-1 rounded cursor-pointer"
+                                    title="Editar"
+                                  >
+                                    <Edit3 className="w-3.5 h-3.5" />
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      if (confirm(`Remover sabor "${flavor.name}"?`)) {
+                                        const updated = flavorsList.filter(f => f.id !== flavor.id);
+                                        setFlavorsList(updated);
+                                        savePizzaFlavors(updated);
+                                      }
+                                    }}
+                                    className="text-stone-400 hover:text-red-600 p-1 rounded cursor-pointer"
+                                    title="Excluir"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+                        </div>
+                      </div>
+                    ) : (
+                      /* Categorized lists in full 2-column grid or clean lists */
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {[
+                          { title: 'Sabores Tradicionais (Salgadas)', items: flavorsList.filter(f => !f.isSweet && !f.isSpecial).sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')), color: 'border-orange-200 text-orange-700 bg-orange-50/30' },
+                          { title: 'Sabores Especiais (Salgadas)', items: flavorsList.filter(f => !f.isSweet && f.isSpecial).sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')), color: 'border-amber-200 text-amber-700 bg-amber-50/30' },
+                          { title: 'Pizzas Doces Tradicionais', items: flavorsList.filter(f => f.isSweet && !f.isSpecial).sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')), color: 'border-pink-200 text-pink-700 bg-pink-50/30' },
+                          { title: 'Pizzas Doces Especiais', items: flavorsList.filter(f => f.isSweet && f.isSpecial).sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')), color: 'border-purple-200 text-purple-700 bg-purple-50/30' }
+                        ].map((cat) => (
+                          <div key={cat.title} className="space-y-2 border border-stone-150 p-3.5 rounded-2xl bg-stone-50/20 shadow-3xs">
+                            <p className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-1.5 rounded-xl border ${cat.color} flex justify-between items-center`}>
+                              <span>{cat.title}</span>
+                              <span className="text-[9px] opacity-75 font-mono">{cat.items.length} sabores</span>
+                            </p>
+                            <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
+                              {cat.items.map((flavor, idx) => (
+                                <div key={flavor.id} className="p-2.5 bg-white border border-stone-200 rounded-xl flex items-start justify-between gap-1.5 hover:border-stone-300 transition-all shadow-3xs">
+                                  <div className="flex-1 min-w-0">
+                                    <div className="text-xs leading-tight text-stone-850">
+                                      <span className="font-mono text-stone-400 font-bold mr-1">{String(idx + 1).padStart(2, '0')}-</span>
+                                      pizza <strong className="font-bold text-stone-950 uppercase">{flavor.name}</strong>
+                                    </div>
+                                    <p className="text-[10px] text-stone-500 leading-snug mt-1 italic">{flavor.ingredients}</p>
+                                    {flavor.isSpecial && (
+                                      <p className="text-[9px] font-mono font-bold text-amber-700 mt-1">
+                                        Adicional: +R$ {flavor.additionalPrice.toFixed(2)}
+                                      </p>
+                                    )}
+                                  </div>
+                                  <div className="flex items-center gap-1 shrink-0">
+                                    <button
+                                      onClick={() => handleOpenFlavorModal(flavor)}
+                                      className="text-stone-400 hover:text-orange-600 p-1 rounded cursor-pointer"
+                                      title="Editar"
+                                    >
+                                      <Edit3 className="w-3.5 h-3.5" />
+                                    </button>
+                                    <button
+                                      onClick={() => {
+                                        if (confirm(`Remover sabor "${flavor.name}"?`)) {
+                                          const updated = flavorsList.filter(f => f.id !== flavor.id);
+                                          setFlavorsList(updated);
+                                          savePizzaFlavors(updated);
+                                        }
+                                      }}
+                                      className="text-stone-400 hover:text-red-600 p-1 rounded cursor-pointer"
+                                      title="Excluir"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
+                                  </div>
+                                </div>
+                              ))}
+                              {cat.items.length === 0 && (
+                                <p className="text-[10px] text-stone-400 italic py-2 pl-2">Nenhum sabor cadastrado nesta categoria.</p>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
               ) : (
-                tenantProducts
-                  .filter((p) => p.category === activeCategory)
-                  .map((product) => (
+                // RENDER NORMAL PRODUCTS (Beverages, Combos, Calzones, etc)
+                filteredProducts.length === 0 ? (
+                  <div className="text-center py-12 text-xs text-stone-400 font-medium">
+                    Nenhum produto cadastrado nesta categoria para esta empresa.
+                  </div>
+                ) : (
+                  filteredProducts.map((product) => (
                     <div
                       key={product.id}
                       className="flex items-start justify-between p-3.5 bg-stone-50/40 border border-stone-200 rounded-2xl hover:border-stone-300 transition-all group shadow-3xs"
@@ -397,82 +837,14 @@ export default function SaaSMenuEditor({ currentTenantId }: SaaSMenuEditorProps)
                       </div>
                     </div>
                   ))
+                )
               )}
             </div>
           </div>
 
           {/* Right Column - Pizza Extras */}
-          {currentTenantId === 'tenant-1' ? (
+          {isPizzaria ? (
             <div className="space-y-6">
-              {/* Pizza Toppings */}
-              <div className="bg-white border border-stone-200 rounded-2xl p-5 space-y-4 shadow-3xs">
-                <div className="flex items-center justify-between border-b border-stone-100 pb-2">
-                  <h4 className="font-display font-bold text-stone-900 text-sm flex items-center gap-1.5">
-                    <Sparkles className="w-4 h-4 text-orange-600" />
-                    Sabores de Pizzas
-                  </h4>
-                  <button
-                    onClick={() => {
-                      const name = prompt('Nome do Sabor:');
-                      if (!name) return;
-                      const spec = confirm('É Sabor Especial (Possui Adicional)?');
-                      let price = 0;
-                      if (spec) {
-                        price = parseFloat(prompt('Valor do Adicional (R$):', '15.00') || '0');
-                      }
-                      const ing = prompt('Ingredientes:') || '';
-                      const updated = [...flavorsList, { id: `f-${Date.now()}`, name, isSpecial: spec, additionalPrice: price, ingredients: ing }];
-                      setFlavorsList(updated);
-                      savePizzaFlavors(updated);
-                    }}
-                    className="text-orange-600 hover:text-orange-500 text-xs font-bold cursor-pointer"
-                  >
-                    + Novo Sabor
-                  </button>
-                </div>
-
-                <div className="space-y-2.5 max-h-[220px] overflow-y-auto pr-1">
-                  {flavorsList.map((flavor) => (
-                    <div key={flavor.id} className="p-2.5 bg-stone-50/40 border border-stone-200 rounded-xl flex items-start justify-between gap-2">
-                      <div>
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-xs font-bold text-stone-800">{flavor.name}</span>
-                          {flavor.isSpecial ? (
-                            <span className="bg-amber-50 text-amber-700 text-[9px] px-1 py-0.2 rounded font-bold uppercase border border-amber-200">
-                              Esp
-                            </span>
-                          ) : (
-                            <span className="bg-stone-200 text-stone-600 text-[9px] px-1 py-0.2 rounded font-bold uppercase border border-stone-300">
-                              Trad
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-[10px] text-stone-500 line-clamp-1 mt-0.5 font-medium">{flavor.ingredients}</p>
-                      </div>
-                      <div className="flex items-center gap-1 shrink-0">
-                        {flavor.isSpecial && (
-                          <span className="font-mono text-[10px] text-amber-700 bg-amber-50 px-1 py-0.5 rounded border border-amber-200 font-bold">
-                            +R${flavor.additionalPrice.toFixed(2)}
-                          </span>
-                        )}
-                        <button
-                          onClick={() => {
-                            if (confirm(`Remover sabor "${flavor.name}"?`)) {
-                              const updated = flavorsList.filter(f => f.id !== flavor.id);
-                              setFlavorsList(updated);
-                              savePizzaFlavors(updated);
-                            }
-                          }}
-                          className="text-stone-400 hover:text-red-600 p-0.5 rounded cursor-pointer"
-                        >
-                          <Trash2 className="w-3 h-3" />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
               {/* Pizza Borders */}
               <div className="bg-white border border-stone-200 rounded-2xl p-5 space-y-4 shadow-3xs">
                 <div className="flex items-center justify-between border-b border-stone-100 pb-2">
@@ -679,19 +1051,29 @@ export default function SaaSMenuEditor({ currentTenantId }: SaaSMenuEditorProps)
                   <select
                     value={formCategory}
                     onChange={(e) => {
-                      const cat = e.target.value as any;
-                      setFormCategory(cat);
-                      if (cat === 'Combo') {
-                        setFormIsCombo(true);
-                      }
+                       const cat = e.target.value as any;
+                       setFormCategory(cat);
+                       if (cat === 'Combo') {
+                         setFormIsCombo(true);
+                       }
                     }}
                     className="w-full bg-stone-50 border border-stone-200 rounded-xl px-3 py-2 font-bold text-stone-900 focus:outline-none focus:border-orange-500"
                   >
-                    <option value="Pizza">Pizza</option>
-                    <option value="Combo">Combo</option>
-                    <option value="Bebida">Bebida</option>
-                    <option value="Acompanhamento">Acompanhamento</option>
-                    <option value="Hamburguer">Hamburguer</option>
+                    {isPizzaria ? (
+                      <>
+                        <option value="Pizza">Pizza</option>
+                        <option value="Combo">Combo</option>
+                        <option value="Bebida">Bebida</option>
+                        <option value="Calzones">Calzones</option>
+                      </>
+                    ) : (
+                      <>
+                        <option value="Hamburguer">Hamburguer</option>
+                        <option value="Combo">Combo</option>
+                        <option value="Bebida">Bebida</option>
+                        <option value="Acompanhamento">Acompanhamento</option>
+                      </>
+                    )}
                   </select>
                 </div>
                 <div>
@@ -913,6 +1295,150 @@ export default function SaaSMenuEditor({ currentTenantId }: SaaSMenuEditorProps)
                   className="bg-orange-600 hover:bg-orange-500 text-white font-black px-4 py-2 rounded-xl shadow-3xs cursor-pointer"
                 >
                   {promoEditingId ? 'Atualizar Campanha' : 'Ativar Campanha'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* PIZZA FLAVOR FORM MODAL */}
+      {showFlavorModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl flex flex-col">
+            <div className="p-4 border-b border-stone-150 flex items-center justify-between bg-stone-50">
+              <h3 className="font-display font-bold text-stone-900 text-sm">
+                {flavorFormId ? 'Editar Sabor de Pizza' : 'Cadastrar Novo Sabor de Pizza'}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowFlavorModal(false)}
+                className="text-stone-400 hover:text-stone-700 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveFlavor} className="p-5 space-y-4 text-xs text-stone-800">
+              <div>
+                <label className="block text-stone-600 font-bold mb-1">Nome do Sabor *</label>
+                <input
+                  type="text"
+                  required
+                  value={flavorFormName}
+                  onChange={(e) => setFlavorFormName(e.target.value)}
+                  placeholder="Ex: À Moda Resenha"
+                  className="w-full bg-stone-50 border border-stone-200 rounded-xl px-3 py-2 font-semibold text-stone-900 focus:outline-none focus:border-orange-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-stone-600 font-bold mb-1">Ingredientes *</label>
+                <textarea
+                  required
+                  value={flavorFormIngredients}
+                  onChange={(e) => setFlavorFormIngredients(e.target.value)}
+                  placeholder="Ex: Molho especial de tomate, mussarela fresca, calabresa fatiada artesanal, cebola roxa e orégano."
+                  rows={3}
+                  className="w-full bg-stone-50 border border-stone-200 rounded-xl px-3 py-2 font-semibold text-stone-900 focus:outline-none focus:border-orange-500 resize-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 bg-stone-50 p-3 rounded-xl border border-stone-150">
+                {/* Sweet vs Savory Selector */}
+                <div>
+                  <label className="block text-stone-600 font-bold mb-1">Tipo de Pizza</label>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setFlavorFormIsSweet(false)}
+                      className={`flex-1 py-1.5 rounded-lg text-[10px] font-bold border transition-all cursor-pointer ${
+                        !flavorFormIsSweet
+                          ? 'bg-orange-600 text-white border-orange-600 shadow-3xs'
+                          : 'bg-white text-stone-500 border-stone-200 hover:bg-stone-100'
+                      }`}
+                    >
+                      Salgada
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setFlavorFormIsSweet(true)}
+                      className={`flex-1 py-1.5 rounded-lg text-[10px] font-bold border transition-all cursor-pointer ${
+                        flavorFormIsSweet
+                          ? 'bg-pink-600 text-white border-pink-600 shadow-3xs'
+                          : 'bg-white text-stone-500 border-stone-200 hover:bg-stone-100'
+                      }`}
+                    >
+                      Doce
+                    </button>
+                  </div>
+                </div>
+
+                {/* Traditional vs Special Selector */}
+                <div>
+                  <label className="block text-stone-600 font-bold mb-1">Categoria</label>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setFlavorFormIsSpecial(false);
+                        setFlavorFormAdditionalPrice(0);
+                      }}
+                      className={`flex-1 py-1.5 rounded-lg text-[10px] font-bold border transition-all cursor-pointer ${
+                        !flavorFormIsSpecial
+                          ? 'bg-stone-850 text-white border-stone-850 shadow-3xs'
+                          : 'bg-white text-stone-500 border-stone-200 hover:bg-stone-100'
+                      }`}
+                    >
+                      Tradicional
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setFlavorFormIsSpecial(true)}
+                      className={`flex-1 py-1.5 rounded-lg text-[10px] font-bold border transition-all cursor-pointer ${
+                        flavorFormIsSpecial
+                          ? 'bg-amber-600 text-white border-amber-600 shadow-3xs'
+                          : 'bg-white text-stone-500 border-stone-200 hover:bg-stone-100'
+                      }`}
+                    >
+                      Especial
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Conditional Additional Price field */}
+              {flavorFormIsSpecial && (
+                <div className="animate-fade-in">
+                  <label className="block text-stone-600 font-bold mb-1">Valor Adicional para Pizza Especial (R$) *</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    required
+                    value={flavorFormAdditionalPrice}
+                    onChange={(e) => setFlavorFormAdditionalPrice(parseFloat(e.target.value) || 0)}
+                    className="w-full bg-stone-50 border border-stone-200 rounded-xl px-3 py-2 font-mono font-bold text-stone-900 focus:outline-none focus:border-orange-500"
+                  />
+                  <p className="text-[10px] text-stone-400 mt-1">
+                    Esse valor será adicionado ao preço base do tamanho de pizza selecionado pelo cliente.
+                  </p>
+                </div>
+              )}
+
+              <div className="border-t border-stone-150 pt-3 flex justify-end gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => setShowFlavorModal(false)}
+                  className="bg-stone-100 hover:bg-stone-200 text-stone-700 font-bold px-4 py-2 rounded-xl border border-stone-250 cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="bg-orange-600 hover:bg-orange-500 text-white font-black px-4 py-2 rounded-xl shadow-3xs cursor-pointer"
+                >
+                  {flavorFormId ? 'Salvar Alterações' : 'Cadastrar Sabor'}
                 </button>
               </div>
             </form>
