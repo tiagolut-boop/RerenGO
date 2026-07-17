@@ -4656,9 +4656,9 @@ export default function SaaSOrdersPanel({
                 {/* Header Mockup */}
                 <div className="text-center mb-4 space-y-0.5">
                   <h4 className="font-black uppercase text-xs">
-                    {currentTenantId === 'tenant-1' ? 'Resenha Pizzaria & Esfiharia' : 'Pizzaria Dona Carmem'}
+                    {tenantName.toUpperCase()}
                   </h4>
-                  <p className="text-[9px] text-stone-500">Lages - SC • Fone: (49) 99988-7766</p>
+                  <p className="text-[9px] text-stone-500">{tenantCity} - {tenantState} • Fone: {tenantPhone}</p>
                   <p className="text-[9px] text-stone-300">---------------------------------</p>
                   <p className="font-bold text-[10px] text-stone-800 uppercase">
                     {printType === 'Cozinha' ? 'TICKET DE COZINHA (PRODUÇÃO)' : 'CUPOM DE PEDIDO (BALCÃO)'}
@@ -4772,29 +4772,26 @@ export default function SaaSOrdersPanel({
                       
                       return (
                         <div key={item.id} className="border-b border-dashed border-stone-200 pb-3 last:border-0 last:pb-0 leading-relaxed text-black">
-                          {/* Line 1: 1x PIZZA GRANDE (40CM) in BOLD (NEGRITO) and LARGER */}
+                          {/* Line 1: 1x PIZZA GIGANTE (45CM) - 2 SABORES */}
                           <div className="flex justify-between font-extrabold text-[13.5px]">
-                            <span>{item.quantity}x {sizeText.toUpperCase()}</span>
+                            <span>{item.quantity}x {sizeText.toUpperCase()} - {fractionLabel}</span>
                             {printType === 'Completo' && (
                               <span>R$ {(item.price * item.quantity).toFixed(2)}</span>
                             )}
                           </div>
                           
-                          {/* Line 2: Quantos sabores */}
-                          <div className="text-[11px] text-black font-bold my-0.5">- {fractionLabel}</div>
-                          
-                          {/* Lines 3-6: Sabores in BOLD (NEGRITO) and UPPERCASE */}
+                          {/* Lines: Sabores in BOLD (NEGRITO) and UPPERCASE */}
                           <div className="space-y-1.5 my-1 pl-1">
                             {flavors.map((fl, idx) => {
                               const ingredients = getIngredientsForFlavor(fl);
                               return (
                                 <div key={idx} className="leading-tight">
                                   <div className="font-extrabold text-[12.5px] text-black">
-                                    - SABOR {idx + 1}: {fl.toUpperCase()}
+                                    SABOR {idx + 1}: *{fl.toUpperCase()}*
                                   </div>
                                   {ingredients && (
-                                    <div className="text-[10px] text-stone-600 font-medium italic pl-3 leading-tight">
-                                      ({ingredients.toLowerCase()})
+                                    <div className="text-[10px] text-stone-600 font-bold uppercase pl-3 leading-tight">
+                                      {ingredients.toUpperCase()}
                                     </div>
                                   )}
                                 </div>
