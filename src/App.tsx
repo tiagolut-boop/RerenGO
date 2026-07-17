@@ -146,6 +146,16 @@ export default function App() {
     return localStorage.getItem('saas_is_master') === 'true';
   });
 
+  const [supabaseSchemaError, setSupabaseSchemaError] = useState<string | null>(null);
+
+  React.useEffect(() => {
+    const handleSchemaError = (e: any) => {
+      setSupabaseSchemaError(e.detail);
+    };
+    window.addEventListener('supabase-schema-error', handleSchemaError);
+    return () => window.removeEventListener('supabase-schema-error', handleSchemaError);
+  }, []);
+
   // Custom router state for real customer ordering link
   const [isCustomerView, setIsCustomerView] = useState(() => {
     const hash = window.location.hash;
@@ -217,6 +227,8 @@ export default function App() {
     };
   });
 
+  const isTechnicalUser = isMaster || localStorage.getItem('saas_is_master_original') === 'true' || activeTenant?.email === 'tiago.lut@gmail.com';
+
   const handleUpdateTenant = (updated: Tenant) => {
     setActiveTenant(updated);
     localStorage.setItem('saas_active_tenant', JSON.stringify(updated));
@@ -236,6 +248,11 @@ export default function App() {
     setActiveTenant(tenant);
     localStorage.setItem('saas_is_logged_in', 'true');
     localStorage.setItem('saas_is_master', isMasterUser ? 'true' : 'false');
+    if (isMasterUser) {
+      localStorage.setItem('saas_is_master_original', 'true');
+    } else {
+      localStorage.removeItem('saas_is_master_original');
+    }
     localStorage.setItem('saas_active_tenant', JSON.stringify(tenant));
   };
 
@@ -244,6 +261,7 @@ export default function App() {
     setIsMaster(false);
     localStorage.setItem('saas_is_logged_in', 'false');
     localStorage.setItem('saas_is_master', 'false');
+    localStorage.removeItem('saas_is_master_original');
   };
 
   const [orders, setOrders] = useState<Order[]>(() => {
@@ -351,6 +369,13 @@ export default function App() {
     return () => window.removeEventListener('storage', handleStorageChange);
   }, [isCustomerView]);
   const [activeTab, setActiveTab] = useState<'orders' | 'customers' | 'kds' | 'menu' | 'finance' | 'drivers' | 'pizzeria' | 'blueprint' | 'supabase'>('orders');
+  
+  React.useEffect(() => {
+    if (!isTechnicalUser && (activeTab === 'supabase' || activeTab === 'blueprint')) {
+      setActiveTab('orders');
+    }
+  }, [activeTab, isTechnicalUser]);
+
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [showSmartphone, setShowSmartphone] = useState(false);
 
@@ -720,11 +745,27 @@ export default function App() {
 
   if (!isLoggedIn) {
     return (
-      <ResengoAuthPortal
-        tenants={tenantsList}
-        onSetTenants={handleUpdateTenantsList}
-        onLoginSuccess={handleSaaSLogin}
-      />
+      <div className="min-h-screen bg-stone-50 flex flex-col justify-between">
+        {supabaseSchemaError && (
+          <div className="bg-red-600 text-white px-6 py-4 text-center text-xs font-bold flex flex-col sm:flex-row items-center justify-center gap-3 sticky top-0 z-50 shadow-lg border-b border-red-700 animate-fade-in notranslate" translate="no">
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-yellow-300">⚠️</span>
+              <span className="whitespace-pre-line text-left">{supabaseSchemaError}</span>
+            </div>
+            <button 
+              onClick={() => setSupabaseSchemaError(null)} 
+              className="bg-red-800 hover:bg-red-900 px-3 py-1.5 rounded text-[10px] font-mono transition-all uppercase cursor-pointer shrink-0"
+            >
+              Fechar Aviso
+            </button>
+          </div>
+        )}
+        <ResengoAuthPortal
+          tenants={tenantsList}
+          onSetTenants={handleUpdateTenantsList}
+          onLoginSuccess={handleSaaSLogin}
+        />
+      </div>
     );
   }
 
@@ -822,6 +863,21 @@ export default function App() {
         <div className="bg-gradient-to-r from-orange-500 to-red-600 text-white px-4 py-3 font-bold text-center text-xs flex items-center justify-center gap-2 animate-pulse sticky top-0 z-50 shadow-lg">
           <Bell className="w-4 h-4 animate-bounce" />
           <span>{showNotification}</span>
+        </div>
+      )}
+
+      {supabaseSchemaError && (
+        <div className="bg-red-600 text-white px-6 py-4 text-center text-xs font-bold flex flex-col sm:flex-row items-center justify-center gap-3 sticky top-0 z-50 shadow-lg border-b border-red-700 animate-fade-in notranslate" translate="no">
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-yellow-300">⚠️</span>
+            <span className="whitespace-pre-line text-left">{supabaseSchemaError}</span>
+          </div>
+          <button 
+            onClick={() => setSupabaseSchemaError(null)} 
+            className="bg-red-800 hover:bg-red-900 px-3 py-1.5 rounded text-[10px] font-mono transition-all uppercase cursor-pointer shrink-0"
+          >
+            Fechar Aviso
+          </button>
         </div>
       )}
 
@@ -930,6 +986,23 @@ export default function App() {
               <Smartphone className="w-3.5 h-3.5 text-white animate-pulse" />
               <span>Cardápio Digital (Copiar Link)</span>
             </button>
+
+            {/* Voltar ao Master (Only if impersonating) */}
+            {localStorage.getItem('saas_is_master_original') === 'true' && (
+              <button
+                onClick={() => {
+                  setIsMaster(true);
+                  localStorage.setItem('saas_is_master', 'true');
+                  // Remove active tenant so we return to master dashboard
+                  localStorage.removeItem('saas_active_tenant');
+                }}
+                className="px-3 py-2 bg-orange-100 hover:bg-orange-200 text-orange-800 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 border border-orange-200 cursor-pointer shadow-3xs"
+                title="Voltar para o Painel Administrativo Master"
+              >
+                <LayoutDashboard className="w-3.5 h-3.5 text-orange-700" />
+                <span>Voltar ao Master</span>
+              </button>
+            )}
 
             {/* SaaS Logout Button */}
             <button
@@ -1156,33 +1229,37 @@ export default function App() {
                   {!isSidebarCollapsed && <span className="truncate">Cadastro Pizzaria</span>}
                 </button>
 
-                <button
-                  onClick={() => setActiveTab('supabase')}
-                  className={`flex items-center ${isSidebarCollapsed ? 'justify-center p-0 h-11' : 'gap-3 px-3 py-2.5'} rounded-xl text-xs font-bold transition-all w-full text-left cursor-pointer ${
-                    activeTab === 'supabase'
-                      ? 'bg-orange-50 text-orange-700 border border-orange-200/60 shadow-3xs'
-                      : 'text-stone-600 hover:text-stone-900 hover:bg-stone-50 border border-transparent'
-                  }`}
-                  title="Banco Supabase"
-                >
-                  <Database className="w-4 h-4 shrink-0 text-orange-600" />
-                  {!isSidebarCollapsed && <span className="truncate">Banco Supabase</span>}
-                </button>
+                {isTechnicalUser && (
+                  <>
+                    <button
+                      onClick={() => setActiveTab('supabase')}
+                      className={`flex items-center ${isSidebarCollapsed ? 'justify-center p-0 h-11' : 'gap-3 px-3 py-2.5'} rounded-xl text-xs font-bold transition-all w-full text-left cursor-pointer ${
+                        activeTab === 'supabase'
+                          ? 'bg-orange-50 text-orange-700 border border-orange-200/60 shadow-3xs'
+                          : 'text-stone-600 hover:text-stone-900 hover:bg-stone-50 border border-transparent'
+                      }`}
+                      title="Banco Supabase"
+                    >
+                      <Database className="w-4 h-4 shrink-0 text-orange-600" />
+                      {!isSidebarCollapsed && <span className="truncate">Banco Supabase</span>}
+                    </button>
 
-                <div className="border-t border-stone-100 my-1.5"></div>
+                    <div className="border-t border-stone-100 my-1.5"></div>
 
-                <button
-                  onClick={() => setActiveTab('blueprint')}
-                  className={`flex items-center ${isSidebarCollapsed ? 'justify-center p-0 h-11' : 'gap-3 px-3 py-2'} rounded-xl text-xs font-bold transition-all w-full text-left cursor-pointer ${
-                    activeTab === 'blueprint'
-                      ? 'bg-orange-50 text-orange-700 border border-orange-250'
-                      : 'text-stone-500 hover:text-stone-800 hover:bg-stone-50 border border-transparent'
-                  }`}
-                  title="Guia Técnico"
-                >
-                  <BookOpen className="w-4 h-4 shrink-0 text-stone-500" />
-                  {!isSidebarCollapsed && <span className="truncate">Guia Técnico</span>}
-                </button>
+                    <button
+                      onClick={() => setActiveTab('blueprint')}
+                      className={`flex items-center ${isSidebarCollapsed ? 'justify-center p-0 h-11' : 'gap-3 px-3 py-2'} rounded-xl text-xs font-bold transition-all w-full text-left cursor-pointer ${
+                        activeTab === 'blueprint'
+                          ? 'bg-orange-50 text-orange-700 border border-orange-250'
+                          : 'text-stone-500 hover:text-stone-800 hover:bg-stone-50 border border-transparent'
+                      }`}
+                      title="Guia Técnico"
+                    >
+                      <BookOpen className="w-4 h-4 shrink-0 text-stone-500" />
+                      {!isSidebarCollapsed && <span className="truncate">Guia Técnico</span>}
+                    </button>
+                  </>
+                )}
               </div>
             </div>
 

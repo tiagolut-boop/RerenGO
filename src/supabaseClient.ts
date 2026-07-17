@@ -386,6 +386,16 @@ export async function testSupabaseConnection(): Promise<{ success: boolean; mess
       }
       throw error;
     }
+
+    // Check if password column exists
+    const { error: passwordError } = await client.from('tenants').select('password').limit(1);
+    if (passwordError && (passwordError.message.includes('column "password" does not exist') || passwordError.code === '42703')) {
+      return {
+        success: true,
+        message: '⚠️ ATENÇÃO: Conectado, mas a coluna "password" não existe na tabela "tenants"! Para corrigir, copie e execute este comando no "SQL Editor" do seu Supabase:\n\nALTER TABLE tenants ADD COLUMN IF NOT EXISTS password TEXT;'
+      };
+    }
+
     return { success: true, message: 'Conectado com sucesso e tabelas identificadas!' };
   } catch (error: any) {
     console.error('Erro de conexão Supabase:', error);
@@ -411,7 +421,12 @@ export async function pushLocalToSupabase(
       log += `Enviando ${tenantsList.length} pizzarias (tenants)...\n`;
       const dbTenants = tenantsList.map(tenantToDb);
       const { error } = await client.from('tenants').upsert(dbTenants);
-      if (error) throw new Error(`Erro nos Tenants: ${error.message}`);
+      if (error) {
+        if (error.message.includes('column "password" of relation "tenants" does not exist') || error.code === '42703') {
+          throw new Error(`A coluna "password" está faltando na tabela "tenants" do seu Supabase.\nPara corrigir, acesse o painel do Supabase, vá em "SQL Editor" e execute:\nALTER TABLE tenants ADD COLUMN IF NOT EXISTS password TEXT;`);
+        }
+        throw new Error(`Erro nos Tenants: ${error.message}`);
+      }
       log += `✅ Pizzarias enviadas com sucesso!\n`;
     }
 
@@ -468,8 +483,34 @@ export async function pullSupabaseToLocal(): Promise<{
   try {
     // 1. Pull Tenants
     log += 'Baixando pizzarias...\n';
-    const { data: dbTenants, error: errT } = await client.from('tenants').select('*');
-    if (errT) throw new Error(`Erro nos Tenants: ${errT.message}`);
+    let dbTenants: any[] | null = null;
+    let errT: any = null;
+    
+    // First try: select all columns
+    const firstAttempt = await client.from('tenants').select('*');
+    dbTenants = firstAttempt.data;
+    errT = firstAttempt.error;
+    
+    // Graceful fallback if the "password" column is missing
+    if (errT && (errT.message.includes('column "password" of relation "tenants" does not exist') || errT.code === '42703')) {
+      log += '⚠️ Coluna "password" ausente. Buscando dados sem a coluna "password"...\n';
+      const fallbackAttempt = await client.from('tenants').select('id,name,slug,logo,type,delivery_fee,phone,email,cnpj,address,bairro,city,state,corporate_name,cep,slogan,plan,is_active,trial_days_left,representative_name,created_at');
+      if (fallbackAttempt.error) {
+        throw new Error(`Erro nos Tenants (fallback): ${fallbackAttempt.error.message}`);
+      }
+      dbTenants = fallbackAttempt.data;
+      errT = null;
+      
+      // Dispatch schema error so the admin knows how to fix it, but it doesn't crash the app
+      setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('supabase-schema-error', { 
+          detail: 'A coluna "password" está faltando na tabela "tenants" no seu Supabase.\nPara corrigir e permitir o login de novos parceiros, acesse o painel do Supabase, vá em "SQL Editor" e execute:\n\nALTER TABLE tenants ADD COLUMN IF NOT EXISTS password TEXT;'
+        }));
+      }, 500);
+    } else if (errT) {
+      throw new Error(`Erro nos Tenants: ${errT.message}`);
+    }
+    
     const tenants = (dbTenants || []).map(dbToTenant);
     log += `✅ Baixado ${tenants.length} pizzarias!\n`;
 
@@ -505,6 +546,11 @@ export async function pullSupabaseToLocal(): Promise<{
     };
   } catch (err: any) {
     console.error('Erro no pull:', err);
+    if (err.message && (err.message.includes('column "password" does not exist') || err.message.includes('password'))) {
+      log += `\n⚠️ ATENÇÃO: Seu banco de dados está desatualizado! A coluna "password" não existe na tabela "tenants".\n`;
+      log += `Para corrigir, copie e execute este comando no "SQL Editor" do seu Supabase:\n`;
+      log += `ALTER TABLE tenants ADD COLUMN IF NOT EXISTS password TEXT;\n\n`;
+    }
     log += `❌ ERRO: ${err.message || err}`;
     return { success: false, log };
   }
@@ -516,7 +562,15 @@ export async function supabaseUpsertTenant(tenant: Tenant) {
   const client: any = getSupabaseClient();
   if (!client) return;
   try {
-    await client.from('tenants').upsert(tenantToDb(tenant));
+    const { error } = await client.from('tenants').upsert(tenantToDb(tenant));
+    if (error) {
+      console.error('Erro ao enviar tenant ao Supabase:', error);
+      if (error.message && (error.message.includes('column "password" does not exist') || error.code === '42703')) {
+        window.dispatchEvent(new CustomEvent('supabase-schema-error', { 
+          detail: 'A coluna "password" está faltando na tabela "tenants" no seu Supabase. Para corrigir, copie e execute o comando no "SQL Editor" do Supabase: ALTER TABLE tenants ADD COLUMN IF NOT EXISTS password TEXT;'
+        }));
+      }
+    }
   } catch (e) {
     console.error('Erro ao enviar tenant ao Supabase:', e);
   }
@@ -526,7 +580,10 @@ export async function supabaseUpsertOrder(order: Order) {
   const client: any = getSupabaseClient();
   if (!client) return;
   try {
-    await client.from('orders').upsert(orderToDb(order));
+    const { error } = await client.from('orders').upsert(orderToDb(order));
+    if (error) {
+      console.error('Erro ao enviar pedido ao Supabase:', error);
+    }
   } catch (e) {
     console.error('Erro ao enviar pedido ao Supabase:', e);
   }
@@ -536,7 +593,10 @@ export async function supabaseUpsertCustomer(customer: Customer) {
   const client: any = getSupabaseClient();
   if (!client) return;
   try {
-    await client.from('customers').upsert(customerToDb(customer));
+    const { error } = await client.from('customers').upsert(customerToDb(customer));
+    if (error) {
+      console.error('Erro ao enviar cliente ao Supabase:', error);
+    }
   } catch (e) {
     console.error('Erro ao enviar cliente ao Supabase:', e);
   }
@@ -546,7 +606,10 @@ export async function supabaseUpsertTransaction(tx: FinancialTransaction) {
   const client: any = getSupabaseClient();
   if (!client) return;
   try {
-    await client.from('financial_transactions').upsert(transactionToDb(tx));
+    const { error } = await client.from('financial_transactions').upsert(transactionToDb(tx));
+    if (error) {
+      console.error('Erro ao enviar transação ao Supabase:', error);
+    }
   } catch (e) {
     console.error('Erro ao enviar transação ao Supabase:', e);
   }
@@ -556,7 +619,10 @@ export async function supabaseDeleteCustomer(customerId: string) {
   const client: any = getSupabaseClient();
   if (!client) return;
   try {
-    await client.from('customers').delete().eq('id', customerId);
+    const { error } = await client.from('customers').delete().eq('id', customerId);
+    if (error) {
+      console.error('Erro ao deletar cliente no Supabase:', error);
+    }
   } catch (e) {
     console.error('Erro ao deletar cliente no Supabase:', e);
   }

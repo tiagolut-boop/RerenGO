@@ -26,6 +26,7 @@ import {
   EyeOff
 } from 'lucide-react';
 import { Tenant } from '../types';
+import { sendEmailNotification, generateRegistrationEmailBody } from '../utils/notificationService';
 
 interface ResengoAuthPortalProps {
   tenants: Tenant[];
@@ -293,34 +294,16 @@ Sistema de Segurança Resengo`;
     const updatedTenants = [...tenants, newTenant];
     onSetTenants(updatedTenants);
 
-    // Setup simulated email to show the user that Tiago gets notified
-    const emailBody = `Olá Tiago!
-    
-Temos um novo parceiro cadastrado no Resengo SaaS!
-Confira os detalhes abaixo:
+    // Generate real email content and send to Tiago in the background
+    const emailSubject = `🔔 Novo Parceiro Cadastrado: ${newTenant.name}`;
+    const emailBody = generateRegistrationEmailBody(newTenant);
+    sendEmailNotification(emailSubject, emailBody, 'registration_alert');
 
-========================================
-🍕 DADOS DA PIZZARIA:
-========================================
-- Nome Comercial: ${newTenant.name}
-- Tipo de Cadastro: ${newTenant.isPF ? 'Pessoa Física (PF)' : 'Pessoa Jurídica (PJ)'}
-- Documento: ${newTenant.isPF ? newTenant.cpf : newTenant.cnpj}
-- Nome do Responsável: ${newTenant.representativeName || 'Não Informado'}
-- WhatsApp: ${newTenant.phone}
-- E-mail de Acesso: ${newTenant.email}
-- Cidade/UF: ${newTenant.city}/${newTenant.state}
-- Plano Escolhido: ${newTenant.plan === 'basic' ? 'Básico (R$ 49,90/mês)' : 'Profissional (R$ 89,90/mês)'}
-- Período de Testes: 3 Dias Grátis
-
-O cadastro foi habilitado automaticamente no modo de testes. Você pode controlar as mensalidades e o status ativo/bloqueado desta conta no seu Painel Master Resengo!
-
-Sucesso,
-Equipe de Tecnologia Resengo`;
-
+    // Keep simulatedEmail state as a temporary store to display a professional receipt/ticket
     setSimulatedEmail({
       to: 'tiago.lut@gmail.com',
       from: 'sistema@resengo.com.br',
-      subject: `🔔 Novo Parceiro Cadastrado: ${newTenant.name}`,
+      subject: emailSubject,
       body: emailBody
     });
 
@@ -366,21 +349,51 @@ Equipe de Tecnologia Resengo`;
                 <p className="text-stone-400 text-[11px]">Você acaba de ganhar <strong>3 dias de teste inteiramente grátis</strong> para decolar sua pizzaria.</p>
               </div>
 
-              {simulatedEmail && (
-                <div className="bg-stone-900 border border-stone-850 rounded-xl p-4 space-y-3.5">
-                  <div className="border-b border-stone-800 pb-2 space-y-1">
-                    <p className="text-[10px] text-stone-500 font-bold uppercase font-mono">Simulação de Disparo de E-mail SaaS</p>
-                    <div className="flex justify-between text-stone-300 font-mono text-[10px]">
-                      <span><strong>De:</strong> {simulatedEmail.from}</span>
-                      <span><strong>Para:</strong> {simulatedEmail.to}</span>
-                    </div>
-                    <p className="text-white font-black text-[11px] mt-1">{simulatedEmail.subject}</p>
+              {/* Beautiful, professional welcome ticket showing access credentials */}
+              <div className="bg-stone-900 border border-stone-800 rounded-xl p-5 space-y-4">
+                <p className="text-[10px] text-stone-500 font-bold uppercase font-mono tracking-wider border-b border-stone-800 pb-2 flex items-center justify-between">
+                  <span>📄 Comprovante de Ativação SaaS</span>
+                  <span className="text-emerald-400 font-black">Status: Ativo (Avaliação)</span>
+                </p>
+                
+                <div className="space-y-3.5 text-stone-300">
+                  <div className="grid grid-cols-3 gap-1">
+                    <span className="text-stone-500 font-mono text-[10px] uppercase font-bold">Pizzaria:</span>
+                    <span className="col-span-2 text-white font-bold">{regName}</span>
                   </div>
-                  <pre className="text-stone-300 text-[10px] leading-relaxed font-mono whitespace-pre-wrap max-h-[220px] overflow-y-auto pr-2 bg-stone-950 p-3 rounded border border-stone-850">
-                    {simulatedEmail.body}
-                  </pre>
+                  
+                  <div className="grid grid-cols-3 gap-1">
+                    <span className="text-stone-500 font-mono text-[10px] uppercase font-bold">E-mail:</span>
+                    <span className="col-span-2 font-mono text-stone-200 select-all font-bold">{regEmail}</span>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-1">
+                    <span className="text-stone-500 font-mono text-[10px] uppercase font-bold">Plano:</span>
+                    <span className="col-span-2 text-orange-400 font-bold">
+                      {regPlan === 'pro' ? 'Profissional / Multi-KDS' : 'Básico'}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-1">
+                    <span className="text-stone-500 font-mono text-[10px] uppercase font-bold">WhatsApp:</span>
+                    <span className="col-span-2 text-stone-200">{regPhone}</span>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-1">
+                    <span className="text-stone-500 font-mono text-[10px] uppercase font-bold">Cidade:</span>
+                    <span className="col-span-2 text-stone-200">{regCity}/{regState}</span>
+                  </div>
+
+                  <div className="bg-stone-950 border border-stone-850 p-3 rounded-lg text-stone-400 text-[10px] space-y-1">
+                    <p className="font-bold text-stone-300">💡 Instruções Importantes:</p>
+                    <ul className="list-disc pl-3.5 space-y-1">
+                      <li>Guarde sua senha para acessar seu painel em outros dispositivos.</li>
+                      <li>Você já pode copiar o link do seu cardápio digital para enviar aos clientes.</li>
+                      <li>O proprietário Tiago foi notificado sobre sua nova conta e está à disposição para suporte!</li>
+                    </ul>
+                  </div>
                 </div>
-              )}
+              </div>
 
               <div className="flex justify-end pt-2">
                 <button
