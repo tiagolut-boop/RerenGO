@@ -56,14 +56,14 @@ export default function SaaSMenuEditor({ currentTenantId }: SaaSMenuEditorProps)
 
   // Tabs: 'menu' (Cardápio e Preços) | 'promotions' (Promoções)
   const [activeTab, setActiveTab] = useState<'menu' | 'promotions'>('menu');
-  const [activeCategory, setActiveCategory] = useState<'Pizza' | 'Hamburguer' | 'Bebida' | 'Acompanhamento' | 'Combo' | 'Calzones' | 'Adicionais'>(
+  const [activeCategory, setActiveCategory] = useState<'Pizza' | 'Hamburguer' | 'Bebida' | 'Acompanhamento' | 'Combo' | 'Calzones' | 'Bordas' | 'Adicionais'>(
     isPizzaria ? 'Pizza' : 'Hamburguer'
   );
 
   React.useEffect(() => {
     if (isPizzaria && activeCategory === 'Hamburguer') {
       setActiveCategory('Pizza');
-    } else if (!isPizzaria && (activeCategory === 'Pizza' || activeCategory === 'Calzones' || activeCategory === 'Adicionais')) {
+    } else if (!isPizzaria && (activeCategory === 'Pizza' || activeCategory === 'Calzones' || activeCategory === 'Bordas' || activeCategory === 'Adicionais')) {
       setActiveCategory('Hamburguer');
     }
   }, [isPizzaria]);
@@ -142,6 +142,58 @@ export default function SaaSMenuEditor({ currentTenantId }: SaaSMenuEditorProps)
   const [showNewIngredientForm, setShowNewIngredientForm] = useState(false);
   const [newIngredientName, setNewIngredientName] = useState('');
   const [newIngredientPrice, setNewIngredientPrice] = useState(4.00);
+
+  // Bordas Form State
+  const [borderSearch, setBorderSearch] = useState('');
+  const [showNewBorderForm, setShowNewBorderForm] = useState(false);
+  const [newBorderName, setNewBorderName] = useState('');
+  const [newBorderPrice, setNewBorderPrice] = useState(14.00);
+  const [newBorderIsSpecial, setNewBorderIsSpecial] = useState(false);
+
+  const handleAddNewBorder = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newBorderName.trim()) return;
+    const newBord: PizzaBorder = {
+      id: `b-${Date.now()}`,
+      name: newBorderName.trim(),
+      price: newBorderPrice,
+      isSpecial: newBorderIsSpecial
+    };
+    const updated = [...bordersList, newBord];
+    setBordersList(updated);
+    savePizzaBorders(updated);
+    setNewBorderName('');
+    setNewBorderPrice(14.00);
+    setNewBorderIsSpecial(false);
+    setShowNewBorderForm(false);
+  };
+
+  const handleUpdateBorderPrice = (id: string, price: number) => {
+    const updated = bordersList.map(b => b.id === id ? { ...b, price } : b);
+    setBordersList(updated);
+    savePizzaBorders(updated);
+  };
+
+  const handleUpdateBorderName = (id: string, name: string) => {
+    const updated = bordersList.map(b => b.id === id ? { ...b, name } : b);
+    setBordersList(updated);
+    savePizzaBorders(updated);
+  };
+
+  const handleUpdateBorderIsSpecial = (id: string, isSpecial: boolean) => {
+    const updated = bordersList.map(b => b.id === id ? { ...b, isSpecial } : b);
+    setBordersList(updated);
+    savePizzaBorders(updated);
+  };
+
+  const handleDeleteBorderItem = (id: string) => {
+    const bName = bordersList.find(b => b.id === id)?.name || '';
+    if (confirm(`Excluir borda "${bName}"?`)) {
+      const updated = bordersList.filter(b => b.id !== id);
+      setBordersList(updated);
+      savePizzaBorders(updated);
+    }
+  };
 
   const handleAddNewIngredient = (e: React.FormEvent) => {
     e.preventDefault();
@@ -458,27 +510,29 @@ export default function SaaSMenuEditor({ currentTenantId }: SaaSMenuEditorProps)
                 <h4 className="font-display font-bold text-stone-900 text-sm">Produtos e Combos</h4>
                 <p className="text-[11px] text-stone-400 font-medium">Cadastre, edite e organize os itens oferecidos.</p>
               </div>
-              <div className="flex items-center gap-1.5 self-end sm:self-auto">
-                <button
-                  onClick={() => handleOpenAddModal(activeCategory, true)}
-                  className="flex items-center gap-1.5 bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs px-3 py-1.5 rounded-lg transition-all shadow-3xs cursor-pointer"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  + Novo Combo
-                </button>
-                <button
-                  onClick={() => handleOpenAddModal(activeCategory, false)}
-                  className="flex items-center gap-1.5 bg-orange-600 hover:bg-orange-500 text-white font-bold text-xs px-3 py-1.5 rounded-lg transition-all shadow-3xs cursor-pointer"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  + Novo Item
-                </button>
-              </div>
+              {activeCategory !== 'Adicionais' && activeCategory !== 'Bordas' && (
+                <div className="flex items-center gap-1.5 self-end sm:self-auto">
+                  <button
+                    onClick={() => handleOpenAddModal(activeCategory, true)}
+                    className="flex items-center gap-1.5 bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs px-3 py-1.5 rounded-lg transition-all shadow-3xs cursor-pointer"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    + Novo Combo
+                  </button>
+                  <button
+                    onClick={() => handleOpenAddModal(activeCategory, false)}
+                    className="flex items-center gap-1.5 bg-orange-600 hover:bg-orange-500 text-white font-bold text-xs px-3 py-1.5 rounded-lg transition-all shadow-3xs cursor-pointer"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    + Novo Item
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Categories Tab Selector */}
             <div className="flex gap-1.5 border-b border-stone-100 pb-2.5 overflow-x-auto">
-              {(isPizzaria ? ['Pizza', 'Combo', 'Bebida', 'Calzones', 'Adicionais'] : ['Hamburguer', 'Combo', 'Bebida', 'Acompanhamento']).map((cat) => (
+              {(isPizzaria ? ['Pizza', 'Combo', 'Bebida', 'Calzones', 'Bordas', 'Adicionais'] : ['Hamburguer', 'Combo', 'Bebida', 'Acompanhamento']).map((cat) => (
                 <button
                   key={cat}
                   onClick={() => setActiveCategory(cat as any)}
@@ -495,7 +549,134 @@ export default function SaaSMenuEditor({ currentTenantId }: SaaSMenuEditorProps)
 
             {/* Products List */}
             <div className="space-y-4">
-              {isPizzaria && activeCategory === 'Adicionais' ? (
+              {isPizzaria && activeCategory === 'Bordas' ? (
+                // RENDER PIZZA BORDERS LIST
+                <div className="space-y-4 animate-fade-in">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-stone-50 p-3.5 rounded-2xl border border-stone-200">
+                    <div className="flex-1 w-full">
+                      <input
+                        type="text"
+                        placeholder="Buscar borda..."
+                        value={borderSearch}
+                        onChange={(e) => setBorderSearch(e.target.value)}
+                        className="w-full bg-white border border-stone-200 rounded-xl px-3 py-1.5 text-xs focus:ring-1 focus:ring-orange-500 focus:border-orange-500 outline-none font-medium"
+                      />
+                    </div>
+                    <button
+                      onClick={() => setShowNewBorderForm(!showNewBorderForm)}
+                      className="w-full sm:w-auto bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold px-4 py-2 rounded-xl flex items-center justify-center gap-1.5 transition-all shadow-3xs cursor-pointer"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      Nova Borda
+                    </button>
+                  </div>
+
+                  {showNewBorderForm && (
+                    <form onSubmit={handleAddNewBorder} className="p-4 bg-orange-50/30 border border-orange-200 rounded-2xl flex flex-col sm:flex-row items-end gap-3 animate-slide-in">
+                      <div className="flex-2 w-full space-y-1">
+                        <label className="text-[10px] font-black uppercase text-stone-500 tracking-wider">Nome da Borda</label>
+                        <input
+                          type="text"
+                          required
+                          value={newBorderName}
+                          onChange={(e) => setNewBorderName(e.target.value)}
+                          placeholder="Ex: Borda de Chocolate, Borda de Cheddar, etc."
+                          className="w-full bg-white border border-stone-200 rounded-xl px-3 py-2 text-xs focus:ring-1 focus:ring-orange-500 focus:border-orange-500 outline-none font-medium"
+                        />
+                      </div>
+                      <div className="w-full sm:w-32 space-y-1">
+                        <label className="text-[10px] font-black uppercase text-stone-500 tracking-wider">Valor (R$)</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          required
+                          value={newBorderPrice}
+                          onChange={(e) => setNewBorderPrice(parseFloat(e.target.value) || 0)}
+                          className="w-full bg-white border border-stone-200 rounded-xl px-3 py-2 text-xs focus:ring-1 focus:ring-orange-500 focus:border-orange-500 outline-none font-medium font-mono"
+                        />
+                      </div>
+                      <div className="w-full sm:w-44 space-y-1">
+                        <label className="text-[10px] font-black uppercase text-stone-500 tracking-wider">Tipo da Borda</label>
+                        <select
+                          value={newBorderIsSpecial ? 'Especial' : 'Tradicional'}
+                          onChange={(e) => setNewBorderIsSpecial(e.target.value === 'Especial')}
+                          className="w-full bg-white border border-stone-200 rounded-xl px-3 py-2 text-xs focus:ring-1 focus:ring-orange-500 focus:border-orange-500 outline-none font-medium"
+                        >
+                          <option value="Tradicional">Tradicional (Padrão)</option>
+                          <option value="Especial">Especial (Adicional)</option>
+                        </select>
+                      </div>
+                      <div className="flex gap-2 w-full sm:w-auto">
+                        <button
+                          type="submit"
+                          className="flex-1 sm:flex-none bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold px-4 py-2 rounded-xl transition-all shadow-3xs cursor-pointer"
+                        >
+                          Adicionar
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowNewBorderForm(false);
+                            setNewBorderName('');
+                            setNewBorderPrice(14.00);
+                            setNewBorderIsSpecial(false);
+                          }}
+                          className="px-3 py-2 bg-stone-100 hover:bg-stone-200 text-stone-600 rounded-xl text-xs font-bold cursor-pointer"
+                        >
+                          Cancelar
+                        </button>
+                      </div>
+                    </form>
+                  )}
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {bordersList
+                      .filter(b => b.name.toLowerCase().includes(borderSearch.toLowerCase()))
+                      .map((b) => (
+                        <div key={b.id} className="p-4 bg-white border border-stone-200 rounded-2xl flex flex-col gap-3 shadow-3xs hover:border-stone-300 transition-all">
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="text"
+                              value={b.name}
+                              onChange={(e) => handleUpdateBorderName(b.id, e.target.value)}
+                              className="flex-1 bg-stone-50 hover:bg-stone-100 focus:bg-white border border-stone-200 rounded-xl px-3 py-1.5 text-xs font-bold text-stone-800 uppercase outline-none focus:ring-1 focus:ring-orange-500 focus:border-orange-500"
+                            />
+                            <button
+                              onClick={() => handleDeleteBorderItem(b.id)}
+                              className="text-stone-400 hover:text-red-600 p-1.5 rounded-xl cursor-pointer transition-all hover:bg-red-50 shrink-0"
+                              title="Excluir Borda"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                          <div className="flex items-center justify-between gap-3 text-xs">
+                            <div className="flex items-center bg-stone-50 border border-stone-200 rounded-xl px-2.5 py-1">
+                              <span className="text-[10px] font-bold text-stone-400 font-mono mr-1">R$</span>
+                              <input
+                                type="number"
+                                step="0.01"
+                                value={b.price}
+                                onChange={(e) => handleUpdateBorderPrice(b.id, parseFloat(e.target.value) || 0)}
+                                className="w-16 bg-transparent border-none text-xs font-bold text-stone-800 outline-none focus:ring-0 p-0 font-mono"
+                              />
+                            </div>
+                            <select
+                              value={b.isSpecial ? 'Especial' : 'Tradicional'}
+                              onChange={(e) => handleUpdateBorderIsSpecial(b.id, e.target.value === 'Especial')}
+                              className="bg-stone-50 border border-stone-200 rounded-xl px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wider text-stone-600 focus:outline-none focus:ring-1 focus:ring-orange-500"
+                            >
+                              <option value="Tradicional">Tradicional</option>
+                              <option value="Especial">Especial</option>
+                            </select>
+                          </div>
+                        </div>
+                      ))}
+                    {bordersList.length === 0 && (
+                      <p className="text-xs text-stone-400 italic col-span-2 text-center py-6">Nenhuma borda cadastrada.</p>
+                    )}
+                  </div>
+                </div>
+              ) : isPizzaria && activeCategory === 'Adicionais' ? (
                 // RENDER PIZZA INGREDIENTS LIST
                 <div className="space-y-4 animate-fade-in">
                   <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-stone-50 p-3.5 rounded-2xl border border-stone-200">

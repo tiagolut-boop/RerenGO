@@ -14,7 +14,9 @@ import {
   Trash2, 
   Check, 
   X,
-  UserPlus
+  UserPlus,
+  History,
+  Clock
 } from 'lucide-react';
 
 interface SaaSCustomersProps {
@@ -37,6 +39,7 @@ export default function SaaSCustomers({
   const [searchQuery, setSearchQuery] = useState('');
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
+  const [viewingHistoryCustomer, setViewingHistoryCustomer] = useState<Customer | null>(null);
 
   // States for multiple addresses management inside editing customer
   const [editedAddresses, setEditedAddresses] = useState<CustomerAddress[]>([]);
@@ -277,6 +280,17 @@ export default function SaaSCustomers({
       const updated = customers.filter(c => c.id !== id);
       onUpdateCustomers(updated);
     }
+  };
+
+  const getCustomerOrders = (customer: Customer) => {
+    const cleanPhone = customer.phone.replace(/\D/g, '');
+    return orders
+      .filter(o => {
+        if (o.tenantId !== currentTenantId) return false;
+        const orderPhone = o.customerPhone.replace(/\D/g, '');
+        return (orderPhone && orderPhone === cleanPhone) || o.customerName.toLowerCase() === customer.name.toLowerCase();
+      })
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   };
 
   // Filter customers by search query
@@ -1038,6 +1052,16 @@ export default function SaaSCustomers({
                             <span>Novo Pedido</span>
                           </button>
 
+                          {/* History button */}
+                          <button
+                            onClick={() => setViewingHistoryCustomer(c)}
+                            className="px-2.5 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200/60 rounded-lg font-black text-[10px] transition-all flex items-center gap-1 cursor-pointer"
+                            title="Visualizar histórico de pedidos deste cliente"
+                          >
+                            <History className="w-3 h-3 text-amber-700" />
+                            <span>Histórico</span>
+                          </button>
+
                           {/* Edit button */}
                           <button
                             onClick={() => handleStartEdit(c)}
@@ -1065,6 +1089,210 @@ export default function SaaSCustomers({
           </div>
         )}
       </div>
+
+      {/* ORDER HISTORY MODAL */}
+      {viewingHistoryCustomer && (() => {
+        const historyOrders = getCustomerOrders(viewingHistoryCustomer);
+        const totalSpent = historyOrders.reduce((sum, o) => sum + o.total, 0);
+
+        return (
+          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
+            <div className="bg-white rounded-3xl max-w-2xl w-full max-h-[85vh] shadow-2xl border border-stone-200 overflow-hidden text-stone-900 flex flex-col animate-in zoom-in-95 duration-200">
+              {/* Modal Header */}
+              <div className="p-5 border-b border-stone-150 flex items-center justify-between bg-stone-50">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-10 h-10 rounded-full bg-amber-50 border border-amber-200 flex items-center justify-center">
+                    <History className="w-5 h-5 text-amber-700" />
+                  </div>
+                  <div>
+                    <h3 className="font-black text-stone-900 text-sm">Histórico de Pedidos</h3>
+                    <p className="text-[11px] text-stone-500 font-bold">{viewingHistoryCustomer.name} • {viewingHistoryCustomer.phone}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setViewingHistoryCustomer(null)}
+                  className="w-8 h-8 rounded-full hover:bg-stone-200 text-stone-400 hover:text-stone-700 flex items-center justify-center transition-all cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Stats Banner */}
+              <div className="bg-amber-50/50 border-b border-amber-100 p-4 grid grid-cols-3 gap-4 text-center">
+                <div className="space-y-0.5">
+                  <span className="block text-[9px] text-stone-500 font-bold uppercase">Total de Pedidos</span>
+                  <span className="block text-base font-black text-stone-900 font-mono">{historyOrders.length}</span>
+                </div>
+                <div className="space-y-0.5">
+                  <span className="block text-[9px] text-stone-500 font-bold uppercase">Total Consumido</span>
+                  <span className="block text-base font-black text-orange-600 font-mono">R$ {totalSpent.toFixed(2)}</span>
+                </div>
+                <div className="space-y-0.5">
+                  <span className="block text-[9px] text-stone-500 font-bold uppercase">Ticket Médio</span>
+                  <span className="block text-base font-black text-stone-900 font-mono">
+                    R$ {historyOrders.length > 0 ? (totalSpent / historyOrders.length).toFixed(2) : '0.00'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Modal Content / Orders List */}
+              <div className="p-6 overflow-y-auto flex-1 space-y-4 bg-stone-50/50">
+                {historyOrders.length === 0 ? (
+                  <div className="text-center py-12 space-y-2">
+                    <Clock className="w-10 h-10 text-stone-300 mx-auto" />
+                    <p className="text-xs font-bold text-stone-600">Nenhum pedido cadastrado ainda</p>
+                    <p className="text-[10px] text-stone-400 max-w-xs mx-auto">Este cliente foi cadastrado no banco de dados mas ainda não possui nenhum registro de vendas associado.</p>
+                  </div>
+                ) : (
+                  historyOrders.map((order) => (
+                    <div key={order.id} className="bg-white border border-stone-200 rounded-2xl p-4 shadow-3xs space-y-3 text-left">
+                      {/* Order Info Bar */}
+                      <div className="flex items-center justify-between border-b border-stone-100 pb-2">
+                        <div className="flex items-center gap-2">
+                          <span className="font-extrabold text-[12px] text-stone-900 bg-stone-100 px-2 py-0.5 rounded">
+                            {order.orderNumber}
+                          </span>
+                          <span className="text-[11px] text-stone-500 font-medium">
+                            {new Date(order.createdAt).toLocaleDateString('pt-BR', {
+                              day: '2-digit',
+                              month: '2-digit',
+                              year: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                          </span>
+                        </div>
+                        <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase ${
+                          order.status === 'Entregue'
+                            ? 'bg-green-100 text-green-800 border border-green-200'
+                            : order.status === 'Cancelado'
+                            ? 'bg-red-100 text-red-800 border border-red-200'
+                            : 'bg-orange-100 text-orange-800 border border-orange-200 animate-pulse'
+                        }`}>
+                          {order.status}
+                        </span>
+                      </div>
+
+                      {/* Items */}
+                      <div className="space-y-1.5 divide-y divide-stone-100">
+                        {order.items.map((item) => {
+                          const isPizza = item.isPizza || (item as any).category === 'Pizza';
+                          const isCombo = item.isCombo || (item as any).category === 'Combo';
+
+                          return (
+                            <div key={item.id} className="text-xs font-medium text-stone-800 pt-1.5 first:pt-0 pl-1">
+                              <div className="flex items-start justify-between">
+                                <span className="font-bold">
+                                  {item.quantity}x {item.name}
+                                </span>
+                                <span className="font-mono text-stone-600">
+                                  R$ {(item.price * item.quantity).toFixed(2)}
+                                </span>
+                              </div>
+
+                              {/* Details if Pizza */}
+                              {isPizza && item.flavors && (
+                                <div className="text-[10px] text-stone-500 pl-4 mt-0.5 space-y-0.5">
+                                  <div>
+                                    • Sabores:{' '}
+                                    <span className="font-bold">
+                                      {item.flavors.map(f => f.name).join(' / ')}
+                                    </span>
+                                  </div>
+                                  {item.size && (
+                                    <div>
+                                      • Tamanho: <span className="font-semibold">{item.size.name}</span>
+                                    </div>
+                                  )}
+                                  {item.border && (
+                                    <div>
+                                      • Borda: <span className="font-semibold">{item.border.name}</span>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+
+                              {/* Details if Combo */}
+                              {isCombo && (
+                                <div className="text-[10px] text-stone-500 pl-4 mt-0.5 space-y-0.5">
+                                  {item.flavors && item.flavors.length > 0 && (
+                                    <div>
+                                      • Pizza Principal:{' '}
+                                      <span className="font-bold">
+                                        {item.flavors.map(f => f.name).join(' / ')}
+                                      </span>
+                                    </div>
+                                  )}
+                                  {item.border && (
+                                    <div>
+                                      • Borda da Principal:{' '}
+                                      <span className="font-semibold">{item.border.name}</span>
+                                    </div>
+                                  )}
+                                  {(item as any).sweetFlavor && (
+                                    <div>
+                                      • Broto Doce:{' '}
+                                      <span className="font-bold">{(item as any).sweetFlavor}</span>
+                                    </div>
+                                  )}
+                                  {item.sweetBorder && (
+                                    <div>
+                                      • Borda da Broto:{' '}
+                                      <span className="font-semibold">{item.sweetBorder.name}</span>
+                                    </div>
+                                  )}
+                                  {(item as any).drinkChoice && (
+                                    <div>
+                                      • Bebida:{' '}
+                                      <span className="font-semibold">{(item as any).drinkChoice}</span>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+
+                              {item.notes && (
+                                <div className="text-[10px] text-amber-600 pl-4 italic mt-0.5">
+                                  Obs: "{item.notes}"
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {/* Summary of totals & Address */}
+                      <div className="pt-2 border-t border-stone-100 flex flex-col sm:flex-row sm:items-center justify-between text-[11px] text-stone-500 gap-2">
+                        <div className="flex items-center gap-1">
+                          <MapPin className="w-3.5 h-3.5 text-stone-400 shrink-0" />
+                          <span className="truncate max-w-[280px]" title={order.customerAddress}>
+                            {order.customerAddress || 'Retirada no Balcão'}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between sm:justify-end gap-3 font-bold">
+                          <span>Pgto: <span className="text-stone-850 font-black">{order.paymentMethod}</span></span>
+                          <span className="text-stone-900 font-black font-mono text-[12px] bg-amber-50 px-2 py-0.5 border border-amber-200/50 rounded">
+                            R$ {order.total.toFixed(2)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {/* Modal Footer */}
+              <div className="p-4 bg-stone-50 border-t border-stone-200 flex justify-end">
+                <button
+                  onClick={() => setViewingHistoryCustomer(null)}
+                  className="px-5 py-2 bg-stone-800 hover:bg-stone-700 text-white rounded-xl font-bold text-xs cursor-pointer transition-all"
+                >
+                  Fechar Histórico
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }

@@ -356,6 +356,10 @@ export default function SaaSOrdersPanel({
               </div>
             `;
 
+            const sweetBorderText = item.sweetBorder
+              ? `<div style="font-size: ${subItemFontSize}; color: #000; padding-left: 8px; margin: 4px 0; font-weight: bold; text-transform: uppercase;">• BORDA DA BROTO: ${item.sweetBorder.name.toUpperCase()}</div>`
+              : '';
+
             const drinkHtml = isCocaDrink
               ? `
                 <div style="font-weight: bold; font-size: ${subItemFontSize}; margin-top: 6px; border: 2px solid #000; padding: 4px 6px; text-transform: uppercase; background: #fff;">
@@ -372,6 +376,10 @@ export default function SaaSOrdersPanel({
               ? `<div style="font-size: ${subItemFontSize}; font-weight: bold; padding-left: 8px; margin-top: 4px; text-transform: uppercase;">• DIFERENÇA COCA-COLA: + R$ ${item.cocaDifference.toFixed(2)}</div>`
               : '';
 
+            const borderText = item.border
+              ? `<div style="font-size: ${subItemFontSize}; color: #000; padding-left: 8px; margin: 4px 0; font-weight: bold; text-transform: uppercase;">• BORDA: ${item.border.name.toUpperCase()}</div>`
+              : '';
+
             const itemObsHtml = item.notes
               ? `<div style="font-size: ${noteFontSize}; font-weight: bold; margin-top: 8px; border: 3px double #000; padding: 6px; background: #fff; text-transform: uppercase; line-height: 1.3;">⚠️ ${highlightNotesText(item.notes)}</div>`
               : '';
@@ -385,8 +393,10 @@ export default function SaaSOrdersPanel({
                 <div style="font-size: ${subItemFontSize}; color: #000; padding-left: 4px; margin: 4px 0;">
                   <strong style="text-transform: uppercase;">- ${comboFractionLabel}</strong>
                   ${flavorsText}
+                  ${borderText}
                 </div>
                 ${sweetFlavorHtml}
+                ${sweetBorderText}
                 ${drinkHtml}
                 ${extraHtml}
                 ${itemObsHtml}
@@ -646,6 +656,10 @@ export default function SaaSOrdersPanel({
   const [posComboDrink, setPosComboDrink] = useState<Product | null>(null);
   const [posComboPrice, setPosComboPrice] = useState<number>(0);
   const [posComboCocaDiff, setPosComboCocaDiff] = useState<number | ''>('');
+  const [posComboBorder, setPosComboBorder] = useState<PizzaBorder | undefined>(undefined);
+  const [posComboSweetBorder, setPosComboSweetBorder] = useState<PizzaBorder | undefined>(undefined);
+  const [posComboNotes, setPosComboNotes] = useState('');
+  const [posComboAddedIngredients, setPosComboAddedIngredients] = useState<PizzaIngredient[][]>([[], [], [], []]);
 
   // Multiple address selection states for POS
   const [selectedPOSAddress, setSelectedPOSAddress] = useState<CustomerAddress | null>(null);
@@ -735,15 +749,27 @@ export default function SaaSOrdersPanel({
   const [comboSearchQuerySweet, setComboSearchQuerySweet] = useState('');
   const [comboSearchQueryDrink, setComboSearchQueryDrink] = useState('');
 
-  // Auto-calculate combo price including special flavor surcharges
+  // Auto-calculate combo price including special flavor surcharges, border, and extra ingredients
   React.useEffect(() => {
     if (posComboProduct) {
       const basePrice = posComboProduct.price;
       const flavorsSurcharge = posComboFlavors.reduce((sum, f) => sum + (f && f.isSpecial ? f.additionalPrice : 0), 0);
       const sweetSurcharge = posComboSweetFlavor && posComboSweetFlavor.isSpecial ? posComboSweetFlavor.additionalPrice : 0;
-      setPosComboPrice(basePrice + flavorsSurcharge + sweetSurcharge);
+      const borderPrice = posComboBorder ? posComboBorder.price : 0;
+      const sweetBorderPrice = posComboSweetBorder ? posComboSweetBorder.price : 0;
+      
+      let ingredientsSurcharge = 0;
+      posComboAddedIngredients.forEach((slotIngs) => {
+        if (slotIngs) {
+          slotIngs.forEach((ing) => {
+            ingredientsSurcharge += ing.price;
+          });
+        }
+      });
+      
+      setPosComboPrice(basePrice + flavorsSurcharge + sweetSurcharge + borderPrice + sweetBorderPrice + ingredientsSurcharge);
     }
-  }, [posComboProduct, posComboFlavors, posComboSweetFlavor]);
+  }, [posComboProduct, posComboFlavors, posComboSweetFlavor, posComboBorder, posComboSweetBorder, posComboAddedIngredients]);
 
   // Print & Receipt Settings
   const [showPrintModal, setShowPrintModal] = useState(false);
@@ -1071,6 +1097,10 @@ export default function SaaSOrdersPanel({
   const [editComboDrink, setEditComboDrink] = useState<Product | null>(null);
   const [editComboPrice, setEditComboPrice] = useState<number>(0);
   const [editComboCocaDiff, setEditComboCocaDiff] = useState<number | ''>('');
+  const [editComboBorder, setEditComboBorder] = useState<PizzaBorder | undefined>(undefined);
+  const [editComboSweetBorder, setEditComboSweetBorder] = useState<PizzaBorder | undefined>(undefined);
+  const [editComboNotes, setEditComboNotes] = useState('');
+  const [editComboAddedIngredients, setEditComboAddedIngredients] = useState<PizzaIngredient[][]>([[], [], [], []]);
   const [editComboSearchQuerySweet, setEditComboSearchQuerySweet] = useState('');
   const [editComboSearchQuerySavory, setEditComboSearchQuerySavory] = useState('');
 
@@ -1160,15 +1190,27 @@ export default function SaaSOrdersPanel({
     setEditFlavorSearchQueries(['', '', '', '']);
   };
 
-  // Auto-calculate edit combo price including special flavor surcharges
+  // Auto-calculate edit combo price including special flavor surcharges, border, and extra ingredients
   React.useEffect(() => {
     if (editComboProduct) {
       const basePrice = editComboProduct.price;
       const flavorsSurcharge = editComboFlavors.reduce((sum, f) => sum + (f && f.isSpecial ? f.additionalPrice : 0), 0);
       const sweetSurcharge = editComboSweetFlavor && editComboSweetFlavor.isSpecial ? editComboSweetFlavor.additionalPrice : 0;
-      setEditComboPrice(basePrice + flavorsSurcharge + sweetSurcharge);
+      const borderPrice = editComboBorder ? editComboBorder.price : 0;
+      const sweetBorderPrice = editComboSweetBorder ? editComboSweetBorder.price : 0;
+      
+      let ingredientsSurcharge = 0;
+      editComboAddedIngredients.forEach((slotIngs) => {
+        if (slotIngs) {
+          slotIngs.forEach((ing) => {
+            ingredientsSurcharge += ing.price;
+          });
+        }
+      });
+      
+      setEditComboPrice(basePrice + flavorsSurcharge + sweetSurcharge + borderPrice + sweetBorderPrice + ingredientsSurcharge);
     }
-  }, [editComboProduct, editComboFlavors, editComboSweetFlavor]);
+  }, [editComboProduct, editComboFlavors, editComboSweetFlavor, editComboBorder, editComboSweetBorder, editComboAddedIngredients]);
 
   const addCustomComboToEdit = () => {
     if (!editComboProduct) return;
@@ -1182,7 +1224,14 @@ export default function SaaSOrdersPanel({
     if (isCoca) {
       cocaDiff = Number(editComboCocaDiff) || 0;
     }
-    const flavorsNames = mainFlavors.map(f => f.name).join(' / ');
+    const flavorsNames = mainFlavors.map((f, idx) => {
+      const slotIngs = editComboAddedIngredients[idx];
+      if (slotIngs && slotIngs.length > 0) {
+        const ingList = slotIngs.map(i => i.name).join(', ');
+        return `${f.name} [+ ${ingList}]`;
+      }
+      return f.name;
+    }).join(' / ');
     const name = `${editComboProduct.name} (Pizzas: ${flavorsNames} • Broto Doce: ${editComboSweetFlavor.name} • Refri: ${editComboDrink.name})`;
 
     const newComboItem: OrderItem = {
@@ -1192,10 +1241,18 @@ export default function SaaSOrdersPanel({
       quantity: 1,
       price: editComboPrice + cocaDiff,
       isCombo: true,
+      border: editComboBorder,
+      sweetBorder: editComboSweetBorder,
+      notes: editComboNotes,
+      addedIngredients: [...editComboAddedIngredients],
     };
 
     setEditItems([...editItems, newComboItem]);
     setEditComboProduct(null);
+    setEditComboBorder(undefined);
+    setEditComboSweetBorder(undefined);
+    setEditComboNotes('');
+    setEditComboAddedIngredients([[], [], [], []]);
   };
 
   // Calculate customized pizza price
@@ -2682,14 +2739,47 @@ export default function SaaSOrdersPanel({
                                     className="w-full bg-white border border-stone-200 rounded px-1.5 py-1 text-[11px] font-bold text-stone-900 focus:outline-none"
                                   >
                                     <option value="">Selecione o sabor...</option>
-                                    {pizzaFlavors
-                                      .filter(f => !f.id.startsWith('f-res-') || parseInt(f.id.replace('f-res-', '')) < 44)
-                                      .filter(f => f.name.toLowerCase().includes(searchQuery.trim().toLowerCase()))
-                                      .map(f => (
-                                        <option key={f.id} value={f.id}>
-                                          {f.name} {f.isSpecial ? `(+ R$ ${f.additionalPrice.toFixed(2)} - Especial)` : ''}
-                                        </option>
-                                      ))}
+                                    {(() => {
+                                      const filtered = pizzaFlavors.filter(f => f.name.toLowerCase().includes(searchQuery.trim().toLowerCase()));
+                                      
+                                      const salgadasTrad = filtered.filter(f => (!f.id.startsWith('f-res-') || parseInt(f.id.replace('f-res-', '')) < 44) && !f.isSpecial);
+                                      const salgadasEsp = filtered.filter(f => (!f.id.startsWith('f-res-') || parseInt(f.id.replace('f-res-', '')) < 44) && f.isSpecial);
+                                      const docesTrad = filtered.filter(f => (f.id.startsWith('f-res-') && parseInt(f.id.replace('f-res-', '')) >= 44) && !f.isSpecial);
+                                      const docesEsp = filtered.filter(f => (f.id.startsWith('f-res-') && parseInt(f.id.replace('f-res-', '')) >= 44) && f.isSpecial);
+
+                                      return (
+                                        <>
+                                          {salgadasTrad.length > 0 && (
+                                            <optgroup label="Salgadas Tradicionais">
+                                              {salgadasTrad.map(f => (
+                                                <option key={f.id} value={f.id}>{f.name}</option>
+                                              ))}
+                                            </optgroup>
+                                          )}
+                                          {salgadasEsp.length > 0 && (
+                                            <optgroup label="Salgadas Especiais">
+                                              {salgadasEsp.map(f => (
+                                                <option key={f.id} value={f.id}>{f.name} (+ R$ {f.additionalPrice.toFixed(2)})</option>
+                                              ))}
+                                            </optgroup>
+                                          )}
+                                          {docesTrad.length > 0 && (
+                                            <optgroup label="Doces Tradicionais">
+                                              {docesTrad.map(f => (
+                                                <option key={f.id} value={f.id}>{f.name}</option>
+                                              ))}
+                                            </optgroup>
+                                          )}
+                                          {docesEsp.length > 0 && (
+                                            <optgroup label="Doces Especiais">
+                                              {docesEsp.map(f => (
+                                                <option key={f.id} value={f.id}>{f.name} (+ R$ {f.additionalPrice.toFixed(2)})</option>
+                                              ))}
+                                            </optgroup>
+                                          )}
+                                        </>
+                                      );
+                                    })()}
                                   </select>
 
                                   <div className="flex items-center gap-1.5">
@@ -2702,6 +2792,62 @@ export default function SaaSOrdersPanel({
                                       className="flex-1 bg-stone-50/50 border border-stone-200/80 rounded px-2 py-0.5 text-[10px] text-stone-600 font-medium focus:outline-none focus:border-red-400 placeholder:text-stone-400 h-6"
                                     />
                                   </div>
+
+                                  {/* Added Ingredients for POS Combo slot */}
+                                  {(() => {
+                                    const slotIngredients = posComboAddedIngredients[slotIdx] || [];
+                                    const sortedIngredients = [...pizzaIngredients].sort((a, b) => a.name.localeCompare(b.name));
+                                    return (
+                                      <>
+                                        {slotIngredients.length > 0 && (
+                                          <div className="flex flex-wrap gap-1 mt-2 pt-1.5 border-t border-stone-100">
+                                            {slotIngredients.map((ing) => (
+                                              <span key={ing.id} className="bg-emerald-50 text-emerald-800 border border-emerald-100 rounded px-1.5 py-0.5 text-[9px] font-bold flex items-center gap-1">
+                                                <span>+ {ing.name} (+R$ {ing.price.toFixed(2)})</span>
+                                                <button
+                                                  type="button"
+                                                  onClick={() => {
+                                                    const copy = [...posComboAddedIngredients];
+                                                    copy[slotIdx] = (copy[slotIdx] || []).filter(i => i.id !== ing.id);
+                                                    setPosComboAddedIngredients(copy);
+                                                  }}
+                                                  className="text-emerald-600 hover:text-emerald-800 font-extrabold cursor-pointer ml-0.5"
+                                                >
+                                                  ×
+                                                </button>
+                                              </span>
+                                            ))}
+                                          </div>
+                                        )}
+
+                                        <div className="mt-2 pt-1.5 border-t border-stone-100 flex items-center gap-1.5">
+                                          <span className="text-[9px] font-black text-stone-400 uppercase tracking-wider shrink-0">Adicional:</span>
+                                          <select
+                                            value=""
+                                            onChange={(e) => {
+                                              const ing = pizzaIngredients.find(i => i.id === e.target.value);
+                                              if (ing) {
+                                                const copy = [...posComboAddedIngredients];
+                                                const currentSlotList = copy[slotIdx] || [];
+                                                if (!currentSlotList.some(i => i.id === ing.id)) {
+                                                  copy[slotIdx] = [...currentSlotList, ing];
+                                                  setPosComboAddedIngredients(copy);
+                                                }
+                                              }
+                                            }}
+                                            className="flex-1 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded px-1.5 py-0.5 text-[10px] text-emerald-800 font-bold focus:outline-none focus:border-emerald-500 h-6 cursor-pointer"
+                                          >
+                                            <option value="" className="text-stone-500 font-bold">Adicionar adicional...</option>
+                                            {sortedIngredients.map((ing) => (
+                                              <option key={ing.id} value={ing.id} className="text-stone-800 font-medium">
+                                                {ing.name} (+R$ {ing.price.toFixed(2)})
+                                              </option>
+                                            ))}
+                                          </select>
+                                        </div>
+                                      </>
+                                    );
+                                  })()}
                                 </div>
                               );
                             })}
@@ -2709,6 +2855,29 @@ export default function SaaSOrdersPanel({
                         </div>
                       );
                     })()}
+
+                    {/* Borda Recheada (Pizza Principal) */}
+                    <div className="bg-white p-3 rounded-lg border border-stone-200 text-[11px] space-y-1.5">
+                      <label className="block text-stone-700 font-bold flex items-center gap-1">
+                        <span>🍩</span>
+                        <span>Borda Recheada da Pizza Principal (Opcional)</span>
+                      </label>
+                      <select
+                        value={posComboBorder?.id || ''}
+                        onChange={(e) => {
+                          const b = pizzaBorders.find(border => border.id === e.target.value);
+                          setPosComboBorder(b);
+                        }}
+                        className="w-full bg-white border border-stone-200 rounded px-1.5 py-1 text-[11px] font-bold text-stone-900 focus:outline-none"
+                      >
+                        <option value="">Sem Borda Recheada</option>
+                        {pizzaBorders.map(b => (
+                          <option key={b.id} value={b.id}>
+                            {b.name} (+R$ {b.price.toFixed(2)})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
 
                     {/* Select sweet pizza flavor with search */}
                     <div className="bg-white p-3 rounded-lg border border-stone-200 text-[11px] space-y-1.5">
@@ -2771,6 +2940,29 @@ export default function SaaSOrdersPanel({
                           className="flex-1 bg-stone-50/50 border border-stone-200/80 rounded px-2 py-0.5 text-[10px] text-stone-600 font-medium focus:outline-none focus:border-red-400 placeholder:text-stone-400 h-6"
                         />
                       </div>
+                    </div>
+
+                    {/* Borda Recheada (Pizza Broto Doce) */}
+                    <div className="bg-white p-3 rounded-lg border border-stone-200 text-[11px] space-y-1.5">
+                      <label className="block text-stone-700 font-bold flex items-center gap-1">
+                        <span>🍩🍫</span>
+                        <span>Borda Recheada da Pizza Broto Doce (Opcional)</span>
+                      </label>
+                      <select
+                        value={posComboSweetBorder?.id || ''}
+                        onChange={(e) => {
+                          const b = pizzaBorders.find(border => border.id === e.target.value);
+                          setPosComboSweetBorder(b);
+                        }}
+                        className="w-full bg-white border border-stone-200 rounded px-1.5 py-1 text-[11px] font-bold text-stone-900 focus:outline-none"
+                      >
+                        <option value="">Sem Borda Recheada</option>
+                        {pizzaBorders.map(b => (
+                          <option key={b.id} value={b.id}>
+                            {b.name} (+R$ {b.price.toFixed(2)})
+                          </option>
+                        ))}
+                      </select>
                     </div>
 
                     {/* Select drink choice with search & visual icons */}
@@ -2867,6 +3059,18 @@ export default function SaaSOrdersPanel({
                     </div>
                   </div>
 
+                  {/* Observations */}
+                  <div className="bg-white p-3 rounded-lg border border-stone-200">
+                    <label className="block text-[10px] text-stone-500 font-bold uppercase tracking-wider mb-1">Observações do Combo</label>
+                    <input
+                      type="text"
+                      placeholder="Ex: Sem cebola, bem assada"
+                      value={posComboNotes}
+                      onChange={(e) => setPosComboNotes(e.target.value)}
+                      className="w-full bg-stone-50 border border-stone-200 rounded-lg px-2.5 py-1.5 text-stone-900 focus:outline-none focus:border-red-500 font-medium text-[11px]"
+                    />
+                  </div>
+
                   {/* Real-time Combo Surcharges and Total Display */}
                   <div className="bg-orange-50 border border-orange-200 p-3.5 rounded-xl flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 animate-pulse-subtle">
                     <div>
@@ -2875,17 +3079,17 @@ export default function SaaSOrdersPanel({
                       </p>
                       <div className="flex flex-wrap items-center gap-1.5 mt-1 font-semibold text-[10px] text-stone-500">
                         <span>Base: R$ {posComboProduct.price.toFixed(2)}</span>
-                        {posComboFlavors.some(f => f?.isSpecial) || posComboSweetFlavor?.isSpecial ? (
+                        {posComboPrice > posComboProduct.price ? (
                           <>
                             <span className="text-stone-300">•</span>
                             <span className="text-red-600 font-bold">
-                              + R$ {((posComboPrice || 0) - posComboProduct.price).toFixed(2)} (sabores especiais selecionados)
+                              + R$ {((posComboPrice || 0) - posComboProduct.price).toFixed(2)} (adicionais, borda ou sabores especiais)
                             </span>
                           </>
                         ) : (
                           <>
                             <span className="text-stone-300">•</span>
-                            <span className="text-green-600 font-bold">Sem adicionais especiais</span>
+                            <span className="text-green-600 font-bold">Sem adicionais especiais ou bordas</span>
                           </>
                         )}
                       </div>
@@ -2923,7 +3127,14 @@ export default function SaaSOrdersPanel({
                           cocaDiff = Number(posComboCocaDiff);
                         }
 
-                        const flavorsNames = mainFlavors.map(f => f.name).join(' / ');
+                        const flavorsNames = mainFlavors.map((f, idx) => {
+                          const slotIngs = posComboAddedIngredients[idx];
+                          if (slotIngs && slotIngs.length > 0) {
+                            const ingList = slotIngs.map(i => i.name).join(', ');
+                            return `${f.name} [+ ${ingList}]`;
+                          }
+                          return f.name;
+                        }).join(' / ');
                         const name = `${posComboProduct.name} (Pizzas: ${flavorsNames} • Broto Doce: ${posComboSweetFlavor.name} • Refri: ${posComboDrink.name})`;
 
                         const newItem: OrderItem = {
@@ -2935,7 +3146,11 @@ export default function SaaSOrdersPanel({
                           isCombo: true,
                           removedComboItems: [],
                           addedExtraItems: [],
-                          cocaDifference: cocaDiff > 0 ? cocaDiff : undefined
+                          cocaDifference: cocaDiff > 0 ? cocaDiff : undefined,
+                          border: posComboBorder,
+                          sweetBorder: posComboSweetBorder,
+                          notes: posComboNotes,
+                          addedIngredients: [...posComboAddedIngredients],
                         };
 
                         setPosCart([...posCart, newItem]);
@@ -2944,6 +3159,10 @@ export default function SaaSOrdersPanel({
                         setPosComboSweetFlavor(null);
                         setPosComboDrink(null);
                         setPosComboCocaDiff('');
+                        setPosComboBorder(undefined);
+                        setPosComboSweetBorder(undefined);
+                        setPosComboNotes('');
+                        setPosComboAddedIngredients([[], [], [], []]);
 
                         // Clear queries
                         setComboSearchQuery1('');
@@ -4004,32 +4223,146 @@ export default function SaaSOrdersPanel({
                               {(() => {
                                 const maxFlavors = editComboProduct.id === 'p-113' ? 4 : (editComboProduct.id === 'p-114' || editComboProduct.id === 'p-115' ? 3 : 2);
                                 return (
-                                  <div className="grid grid-cols-2 gap-1.5">
-                                    {Array.from({ length: maxFlavors }).map((_, slotIdx) => (
-                                      <div key={slotIdx} className="space-y-0.5">
-                                        <select
-                                          value={editComboFlavors[slotIdx]?.id || ''}
-                                          onChange={(e) => {
-                                            const f = pizzaFlavors.find(fl => fl.id === e.target.value);
-                                            if (f) {
-                                              const copy = [...editComboFlavors];
-                                              copy[slotIdx] = f;
-                                              setEditComboFlavors(copy);
-                                            }
-                                          }}
-                                          className="w-full bg-white border border-stone-200 rounded px-1.5 py-0.5 text-[10px] font-bold text-stone-900 focus:outline-none focus:border-orange-500"
-                                        >
-                                          {savoryFlavorsList.map(f => (
-                                            <option key={f.id} value={f.id}>
-                                              {f.name} {f.isSpecial ? `(+ R$ ${f.additionalPrice.toFixed(2)})` : ''}
-                                            </option>
-                                          ))}
-                                        </select>
-                                      </div>
-                                    ))}
+                                  <div className="space-y-2">
+                                    {Array.from({ length: maxFlavors }).map((_, slotIdx) => {
+                                      const slotIngredients = editComboAddedIngredients[slotIdx] || [];
+                                      const sortedIngredients = [...pizzaIngredients].sort((a, b) => a.name.localeCompare(b.name));
+                                      return (
+                                        <div key={slotIdx} className="bg-white/85 p-2 rounded-lg border border-stone-200/60 space-y-1">
+                                          <div className="flex justify-between items-center text-[9px] font-bold text-stone-600">
+                                            <span>Sabor #{slotIdx + 1} {slotIdx > 0 ? '(Opcional)' : ''}:</span>
+                                            {editComboFlavors[slotIdx]?.isSpecial && (
+                                              <span className="text-orange-700 font-extrabold uppercase">Sabor Especial</span>
+                                            )}
+                                          </div>
+                                          <select
+                                            value={editComboFlavors[slotIdx]?.id || ''}
+                                            onChange={(e) => {
+                                              const f = pizzaFlavors.find(fl => fl.id === e.target.value);
+                                              if (f) {
+                                                const copy = [...editComboFlavors];
+                                                copy[slotIdx] = f;
+                                                setEditComboFlavors(copy);
+                                              }
+                                            }}
+                                            className="w-full bg-white border border-stone-200 rounded px-1.5 py-0.5 text-[10px] font-bold text-stone-900 focus:outline-none focus:border-orange-500"
+                                          >
+                                            <option value="">Selecione o sabor...</option>
+                                            {(() => {
+                                              const salgadasTrad = pizzaFlavors.filter(f => (!f.id.startsWith('f-res-') || parseInt(f.id.replace('f-res-', '')) < 44) && !f.isSpecial);
+                                              const salgadasEsp = pizzaFlavors.filter(f => (!f.id.startsWith('f-res-') || parseInt(f.id.replace('f-res-', '')) < 44) && f.isSpecial);
+                                              const docesTrad = pizzaFlavors.filter(f => (f.id.startsWith('f-res-') && parseInt(f.id.replace('f-res-', '')) >= 44) && !f.isSpecial);
+                                              const docesEsp = pizzaFlavors.filter(f => (f.id.startsWith('f-res-') && parseInt(f.id.replace('f-res-', '')) >= 44) && f.isSpecial);
+
+                                              return (
+                                                <>
+                                                  {salgadasTrad.length > 0 && (
+                                                    <optgroup label="Salgadas Tradicionais">
+                                                      {salgadasTrad.map(f => (
+                                                        <option key={f.id} value={f.id}>{f.name}</option>
+                                                      ))}
+                                                    </optgroup>
+                                                  )}
+                                                  {salgadasEsp.length > 0 && (
+                                                    <optgroup label="Salgadas Especiais">
+                                                      {salgadasEsp.map(f => (
+                                                        <option key={f.id} value={f.id}>{f.name} (+ R$ {f.additionalPrice.toFixed(2)})</option>
+                                                      ))}
+                                                    </optgroup>
+                                                  )}
+                                                  {docesTrad.length > 0 && (
+                                                    <optgroup label="Doces Tradicionais">
+                                                      {docesTrad.map(f => (
+                                                        <option key={f.id} value={f.id}>{f.name}</option>
+                                                      ))}
+                                                    </optgroup>
+                                                  )}
+                                                  {docesEsp.length > 0 && (
+                                                    <optgroup label="Doces Especiais">
+                                                      {docesEsp.map(f => (
+                                                        <option key={f.id} value={f.id}>{f.name} (+ R$ {f.additionalPrice.toFixed(2)})</option>
+                                                      ))}
+                                                    </optgroup>
+                                                  )}
+                                                </>
+                                              );
+                                            })()}
+                                          </select>
+
+                                          {/* Selected ingredients list */}
+                                          {slotIngredients.length > 0 && (
+                                            <div className="flex flex-wrap gap-1 mt-1">
+                                              {slotIngredients.map((ing) => (
+                                                <span key={ing.id} className="bg-emerald-50 text-emerald-800 border border-emerald-100 rounded px-1.5 py-0.5 text-[8px] font-black flex items-center gap-0.5">
+                                                  <span>+ {ing.name}</span>
+                                                  <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                      const copy = [...editComboAddedIngredients];
+                                                      copy[slotIdx] = (copy[slotIdx] || []).filter(i => i.id !== ing.id);
+                                                      setEditComboAddedIngredients(copy);
+                                                    }}
+                                                    className="text-emerald-600 hover:text-emerald-800 font-extrabold cursor-pointer ml-0.5"
+                                                  >
+                                                    ×
+                                                  </button>
+                                                </span>
+                                              ))}
+                                            </div>
+                                          )}
+
+                                          {/* Ingredient select */}
+                                          <div className="flex items-center gap-1.5 mt-1 text-[9px]">
+                                            <span className="text-[8px] font-bold text-stone-400 uppercase tracking-wider shrink-0">Adicional:</span>
+                                            <select
+                                              value=""
+                                              onChange={(e) => {
+                                                const ing = pizzaIngredients.find(i => i.id === e.target.value);
+                                                if (ing) {
+                                                  const copy = [...editComboAddedIngredients];
+                                                  const currentSlotList = copy[slotIdx] || [];
+                                                  if (!currentSlotList.some(i => i.id === ing.id)) {
+                                                    copy[slotIdx] = [...currentSlotList, ing];
+                                                    setEditComboAddedIngredients(copy);
+                                                  }
+                                                }
+                                              }}
+                                              className="flex-1 bg-emerald-50/50 hover:bg-emerald-100/50 border border-emerald-200 rounded px-1 py-0.5 text-[9px] text-emerald-800 font-bold focus:outline-none focus:border-emerald-500 h-5.5 cursor-pointer"
+                                            >
+                                              <option value="" className="text-stone-500 font-bold">Adicionar...</option>
+                                              {sortedIngredients.map((ing) => (
+                                                <option key={ing.id} value={ing.id} className="text-stone-800 font-medium">
+                                                  {ing.name} (+R$ {ing.price.toFixed(2)})
+                                                </option>
+                                              ))}
+                                            </select>
+                                          </div>
+                                        </div>
+                                      );
+                                    })}
                                   </div>
                                 );
                               })()}
+                            </div>
+
+                            {/* Borda Recheada (Pizza Principal) */}
+                            <div className="space-y-0.5">
+                              <label className="block text-[8px] text-stone-400 font-bold uppercase">Borda Recheada da Pizza Principal (Opcional):</label>
+                              <select
+                                value={editComboBorder?.id || ''}
+                                onChange={(e) => {
+                                  const b = pizzaBorders.find(border => border.id === e.target.value);
+                                  setEditComboBorder(b);
+                                }}
+                                className="w-full bg-white border border-stone-200 rounded px-1.5 py-0.5 text-[10px] font-bold text-stone-900 focus:outline-none focus:border-orange-500"
+                              >
+                                <option value="">Sem Borda Recheada</option>
+                                {pizzaBorders.map(b => (
+                                  <option key={b.id} value={b.id}>
+                                    {b.name} (+ R$ {b.price.toFixed(2)})
+                                  </option>
+                                ))}
+                              </select>
                             </div>
 
                             {/* Sweet Pizza flavor selection */}
@@ -4048,6 +4381,26 @@ export default function SaaSOrdersPanel({
                                 {sweetFlavorsList.map(f => (
                                   <option key={f.id} value={f.id}>
                                     {f.name} {f.isSpecial ? `(+ R$ ${f.additionalPrice.toFixed(2)})` : ''}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+
+                            {/* Borda Recheada (Pizza Broto Doce) */}
+                            <div className="space-y-0.5">
+                              <label className="block text-[8px] text-stone-400 font-bold uppercase">Borda Recheada da Pizza Broto Doce (Opcional):</label>
+                              <select
+                                value={editComboSweetBorder?.id || ''}
+                                onChange={(e) => {
+                                  const b = pizzaBorders.find(border => border.id === e.target.value);
+                                  setEditComboSweetBorder(b);
+                                }}
+                                className="w-full bg-white border border-stone-200 rounded px-1.5 py-0.5 text-[10px] font-bold text-stone-900 focus:outline-none focus:border-orange-500"
+                              >
+                                <option value="">Sem Borda Recheada</option>
+                                {pizzaBorders.map(b => (
+                                  <option key={b.id} value={b.id}>
+                                    {b.name} (+ R$ {b.price.toFixed(2)})
                                   </option>
                                 ))}
                               </select>
@@ -4090,6 +4443,18 @@ export default function SaaSOrdersPanel({
                                   />
                                 </div>
                               )}
+                            </div>
+
+                            {/* Observations */}
+                            <div className="pt-1 border-t border-orange-100/40">
+                              <label className="block text-[8px] text-stone-400 font-bold uppercase">Observações do Combo:</label>
+                              <input
+                                type="text"
+                                placeholder="Ex: sem cebola"
+                                value={editComboNotes}
+                                onChange={(e) => setEditComboNotes(e.target.value)}
+                                className="w-full bg-white border border-stone-200 rounded px-1.5 py-0.5 text-[10px] font-medium text-stone-900 focus:outline-none focus:border-orange-500"
+                              />
                             </div>
 
                             {/* Actions */}
@@ -4286,10 +4651,24 @@ export default function SaaSOrdersPanel({
                       );
                     })}
 
+                    {/* Main Pizza Border */}
+                    {item.border && (
+                      <div style={{ fontWeight: '900', fontSize: printPaperWidth === '58mm' ? '12.5px' : '15px', marginLeft: '10px', marginTop: '6px' }}>
+                        <strong>• BORDA DA PIZZA PRINCIPAL: {item.border.name.toUpperCase()}</strong>
+                      </div>
+                    )}
+
                     {/* Highlighted Brotinho doce */}
                     <div style={{ fontWeight: '900', fontSize: printPaperWidth === '58mm' ? '12.5px' : '15px', marginLeft: '10px', marginTop: '8px', border: '2.5px solid #000', padding: '4px 6px', textTransform: 'uppercase', background: '#fff' }}>
                       <strong>🍓 BROTINHO: {parsed.sweetFlavor.toUpperCase()}</strong>
                     </div>
+
+                    {/* Brotinho doce Border */}
+                    {item.sweetBorder && (
+                      <div style={{ fontWeight: '900', fontSize: printPaperWidth === '58mm' ? '12.5px' : '15px', marginLeft: '10px', marginTop: '6px' }}>
+                        <strong>• BORDA DA PIZZA BROTO: {item.sweetBorder.name.toUpperCase()}</strong>
+                      </div>
+                    )}
 
                     {/* Drink / Refrigerante */}
                     {isCocaDrink ? (
@@ -4392,6 +4771,12 @@ export default function SaaSOrdersPanel({
                     {item.cocaDifference && item.cocaDifference > 0 && (
                       <div style={{ fontWeight: '900', fontSize: printPaperWidth === '58mm' ? '13px' : '15px', marginLeft: '10px', marginTop: '6px', color: '#000' }}>
                         <strong>• DIFERENÇA COCA-COLA: + R$ {item.cocaDifference.toFixed(2)}</strong>
+                      </div>
+                    )}
+
+                    {item.border && (
+                      <div style={{ fontWeight: '900', fontSize: printPaperWidth === '58mm' ? '13px' : '15px', marginLeft: '10px', marginTop: '6px', color: '#000' }}>
+                        <strong>• BORDA: {item.border.name.toUpperCase()}</strong>
                       </div>
                     )}
                     
@@ -4799,7 +5184,12 @@ export default function SaaSOrdersPanel({
                             })}
                             {item.border && (
                               <div className="font-extrabold text-[11px] text-stone-700">
-                                - BORDA: {item.border.name.toUpperCase()}
+                                - BORDA DA PIZZA PRINCIPAL: {item.border.name.toUpperCase()}
+                              </div>
+                            )}
+                            {item.sweetBorder && (
+                              <div className="font-extrabold text-[11px] text-stone-700">
+                                - BORDA DA PIZZA BROTO: {item.sweetBorder.name.toUpperCase()}
                               </div>
                             )}
                           </div>

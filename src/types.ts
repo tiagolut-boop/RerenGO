@@ -110,6 +110,7 @@ export interface OrderItem {
   
   // Dynamic Combo settings
   isCombo?: boolean;
+  sweetBorder?: PizzaBorder; // Sweet pizza border customization in combos
   removedComboItems?: string[]; // Names of removed items from standard combo
   addedExtraItems?: { name: string; price: number }[]; // Added extras to combo
   cocaDifference?: number; // Difference added when Coca-Cola is chosen in combo
